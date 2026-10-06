@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Підібрані заміни на {{ data_str }}</h1>
+  <p class="hint-info">
+    Для кожного уроку - варіанти вчителів, вільних саме цей урок. Спершу ті, хто веде
+    ТОЙ САМИЙ предмет (ідеальна заміна); нижче - вільні вчителі з ІНШИМ предметом
+    (напр. хворіє математик - можна провести урок української, якщо вчитель вільний).
+    Перевірте й натисніть "Зберегти заміни" внизу.
+  </p>
+  <a class="btn btn-secondary" href="/zaminy">← Інший підбір</a>
+
+  <form method="post" action="/zaminy/zberegty-masovo" class="mt-16">
+    <input type="hidden" name="data" value="{{ data_str }}">
+
+    <div class="table-wrap">
+      <table>
+        <tr>
+          <th>Урок</th>
+          <th>Клас</th>
+          <th>Плановий предмет/заняття</th>
+          <th>Відсутній</th>
+          <th>Рішення</th>
+        </tr>
+        {% for u in uroky %}
+        {% set zapys_kluch = u.klas_id ~ ":" ~ u.urok ~ ":" ~ (u.predmet_id or "") ~ ":" ~ (u.pozaurochne_zanyattya_id or "") ~ ":" ~ u.vidsutnii_id %}
+        <tr class="{{ 'nazva-unused' if u.potrebuye_ruchnogo else '' }}">
+          <td>{{ u.urok }}</td>
+          <td>{{ u.klas_nazva }}</td>
+          <td>{{ u.predmet_nazva }}</td>
+          <td>{{ u.vidsutnii_pib }}</td>
+          <td>
+            <input type="hidden" name="urok_id" value="{{ zapys_kluch }}">
+            {% if u.potrebuye_ruchnogo %}
+              <strong class="nazva-unused">Потребує ручного втручання - немає жодного вільного вчителя</strong><br>
+              <select name="rishennya_{{ zapys_kluch }}">
+                <option value="bez_zmin">— без змін (вирішити пізніше) —</option>
+                <option value="skasovano">Скасувати урок</option>
+              </select>
+            {% else %}
+              <select name="rishennya_{{ zapys_kluch }}">
+                <option value="bez_zmin">— без змін —</option>
+                {% for k in u.kandydaty %}
+                  <option value="{{ k.predmet_id or '' }}:{{ k.pozaurochne_zanyattya_id or '' }}:{{ k.vchytel_id }}" {{ "selected" if loop.first else "" }}>
+                    {{ "✓ " if k.toy_samyi_predmet else "інше: " }}{{ k.predmet_nazva }} — {{ k.vchytel_pib }}
+                    (уроків цього дня: {{ k.navantazhennya_dnya }})
+                  </option>
+                {% endfor %}
+                <option value="skasovano">Скасувати урок</option>
+              </select>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <button type="submit" class="mt-16">Зберегти заміни</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Міжпредметні групи поділу</h1>
+  <p class="hint-info">
+    Різні предмети одночасно для підгруп того самого класу (напр. половина класу на
+    інформатиці, половина на іноземній мові, потім чергування). Усі записи групи завжди
+    стоять в одному й тому самому слоті розкладу класу.
+  </p>
+  <a class="btn" href="/navchalnyj-plan/mizhpredmetni/new">+ Створити групу</a>
+
+  <div class="table-wrap mt-16">
+    <table>
+      <tr>
+        <th>Клас</th>
+        <th>Назва групи</th>
+        <th>Записи (предмет — вчитель)</th>
+        <th></th>
+      </tr>
+      {% for g in grupy %}
+      <tr>
+        <td>{{ klas_nazva(g.paralel, g.litera) }}</td>
+        <td>{{ g.nazva }}</td>
+        <td class="wrap-cell">{{ g.zapysy_opys or "—" }}</td>
+        <td>
+          <form method="post" action="/navchalnyj-plan/mizhpredmetni/{{ g.id }}/delete"
+                onsubmit="return confirm('Розформувати групу {{ g.nazva }}? Записи навчального плану залишаться, просто розєднаються.');">
+            <button type="submit" class="btn btn-danger btn-small">Розформувати</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="empty-row">Міжпредметних груп ще немає</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Клас-комплекти</h1>
+  <p class="hint-info">
+    Об'єднані класи початкової школи (1-4, від 2 до 4 класів у групі, норматив МОН) —
+    один вчитель веде кілька паралелей одночасно. Генератор намагається ставити той самий
+    предмет усім класам групи одночасно, доки в усіх ще лишились непризначені години;
+    "залишкові" години (коли в одного класу їх більше, ніж в інших) розкладаються окремо.
+  </p>
+
+  <a class="btn" href="/klas-komplekty/new">+ Новий клас-комплект</a>
+
+  <div class="table-wrap mt-16">
+    <table>
+      <tr>
+        <th>Назва</th>
+        <th>Класи в групі</th>
+        <th class="col-actions"></th>
+      </tr>
+      {% for kk in komplekty %}
+        <tr>
+          <td>{{ kk.nazva }}</td>
+          <td>{{ kk.chleny|join(", ") if kk.chleny else "— порожньо —" }}</td>
+          <td>
+            <div class="actions-cell">
+              <a class="btn btn-small" href="/klas-komplekty/{{ kk.id }}/edit">Редагувати</a>
+              <form method="post" action="/klas-komplekty/{{ kk.id }}/delete"
+                    onsubmit="return confirm('Видалити клас-комплект «{{ kk.nazva }}»? Класи лишаться, але вийдуть із групи.');">
+                <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      {% if not komplekty %}
+        <tr><td colspan="3">Клас-комплектів ще немає.</td></tr>
+      {% endif %}
+    </table>
+  </div>
+{% endblock %}

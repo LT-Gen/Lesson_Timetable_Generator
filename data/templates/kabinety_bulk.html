@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Масове додавання кабінетів</h1>
+  <p class="hint-plain">
+    Введіть по одному кабінету в кожному рядку у форматі <strong>Назва, Місткість</strong>
+    (напр. "205, 30"). Дублікати (за точним співпадінням назви) буде пропущено. Тип
+    прив'язки, корпус, поверх та інші поля можна буде налаштувати потім через
+    "Редагувати"/"Додатково".
+  </p>
+
+  {% if message %}
+    <div class="alert alert-success">
+      {{ message }}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <label>Перелік кабінетів (по одному на рядок, "Назва, Місткість")</label>
+    <textarea name="kabinety_list" rows="15"
+              placeholder="205, 30&#10;Спортзал, 30&#10;Майстерня, 15"></textarea>
+
+    <div>
+      <button type="submit">Додати всі</button>
+      <a class="btn btn-secondary" href="/kabinety">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Додатково: {{ klas_nazva(klas.paralel, klas.litera) }}</h1>
+  <a class="btn btn-secondary" href="/klasy">← До списку класів</a>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" class="mt-16">
+    {% set paralel_val = klas.paralel %}
+    <label>Максимум уроків на день — БЕЗ фізкультури</label>
+    <input type="number" name="maks_urokiv_den" min="1" max="10"
+           value="{{ klas.maks_urokiv_den if klas.maks_urokiv_den else '' }}"
+           placeholder="за замовчуванням {{ default_maks_urokiv_den(paralel_val) }} (Санітарний регламент за віком)">
+    <p class="hint-info">
+      Орієнтир Санітарного регламенту: 1 клас — 4, 2-4 класи — 5, 5 клас — 6,
+      6-9 класи — 7, 10-12 класи — 8. Стосується ЗВИЧАЙНИХ навчальних предметів.
+      Залиште порожнім, щоб система використала цей типовий норматив автоматично.
+    </p>
+
+    <label>Максимум уроків на день — З фізкультурою</label>
+    <input type="number" name="maks_urokiv_den_z_fizkulturoyu" min="1" max="10"
+           value="{{ klas.maks_urokiv_den_z_fizkulturoyu if klas.maks_urokiv_den_z_fizkulturoyu else '' }}"
+           placeholder="за замовчуванням {{ default_maks_urokiv_den_z_fizkulturoyu(paralel_val) }} (на 1 більше)">
+    <p class="hint-info">
+      Фізкультура (і будь-який інший предмет, позначений "не враховується у
+      граничному навантаженні") дозволена ПОНАД звичайний ліміт вище — саме як цей
+      додатковий урок того дня, коли вона є. Не рахується проти звичайних предметів.
+    </p>
+
+    <label>Граничне навантаження (без фізкультури, годин/тиждень)</label>
+    <input type="number" name="hranychne_navantazhennya" min="1" max="50"
+           value="{{ klas.hranychne_navantazhennya if klas.hranychne_navantazhennya else '' }}"
+           placeholder="за замовчуванням {{ default_hranychne_navantazhennya(paralel_val) }} (з офіційного плану МОН)">
+    <p class="hint-info">
+      Верхня межа для генератора. Вносьте вручну з офіційного навчального плану МОН
+      для цього класу/паралелі — типове значення лише орієнтир. Це саме поле також
+      редагується прямо в таблиці "Навантаження по класах" на сторінці "Навчальний план".
+    </p>
+
+    <label>Фактичне навантаження (з фізкультурою, годин/тиждень)</label>
+    <input type="number" name="faktychne_navantazhennya" min="1" max="50"
+           value="{{ klas.faktychne_navantazhennya if klas.faktychne_navantazhennya else '' }}"
+           placeholder="за замовчуванням {{ default_faktychne_navantazhennya(paralel_val) }} (з офіційного плану МОН)">
+    <p class="hint-info">
+      Те, що МОН реально оплачує школі за цей клас (включно з фізкультурою) —
+      теж верхня межа для генератора, окрема від граничного навантаження вище.
+      Вносьте вручну з офіційного навчального плану МОН.
+    </p>
+
+    <label>Мова навчання</label>
+    <select name="mova_navchannya">
+      <option value="">— успадкує мову закладу ({{ school_mova }}) —</option>
+      {% for m in MOVY_NAVCHANNYA %}
+        <option value="{{ m }}" {{ "selected" if klas.mova_navchannya == m else "" }}>{{ m }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint-info">
+      Впливає на пороги обов'язкового поділу на підгрупи
+      (<a href="/normatyvni-dokumenty#nakaz-128" target="_blank">наказ МОН №808</a>) для класів
+      з навчанням мовами національних меншин чи корінних народів.
+    </p>
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/klasy">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

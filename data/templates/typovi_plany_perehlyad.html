@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ plan.nazva }}</h1>
+  <a class="btn btn-secondary" href="/typovi-plany">← Усі плани</a>
+
+  {% for s in plan.sektsiyi %}
+    <h2 class="section-title mt-24">{{ s.nazva }}</h2>
+    <div class="table-wrap"><table class="typovyi-plan-tabl">
+      <tr>
+        <th>Назва</th>
+        <th class="col-narrow">{{ plan.klasy[0] if plan.klasy else "1 кл." }}</th>
+        <th class="col-narrow">{{ plan.klasy[1] if plan.klasy else "2 кл." }}</th>
+        <th class="col-narrow">Разом</th>
+      </tr>
+      {% for r in s.riadky %}
+      <tr{% if "Усього" in r.nazva or "Гранично" in r.nazva or "Сумарна" in r.nazva or "Кількість навчальних годин" in r.nazva %} class="riadok-pidsumok"{% endif %}>
+        <td>{{ r.nazva }}</td>
+        <td>{{ r.godyn_1 or "—" }}</td>
+        <td>{{ r.godyn_2 or "—" }}</td>
+        <td>{{ r.razom or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+  {% endfor %}
+
+  {% for t in plan.tablytsi %}
+    {% if t.nazva %}<h2 class="section-title mt-24">{{ t.nazva }}</h2>{% endif %}
+    <div class="table-wrap mt-16"><table>
+      <tr>
+        {% for stovpets in t.stovptsi %}<th>{{ stovpets }}</th>{% endfor %}
+      </tr>
+      {% for r in t.riadky %}
+      <tr{% if loop.index0 in (t.pidsumkovi or []) %} class="riadok-pidsumok"{% endif %}>
+        {% for komirka in r %}<td>{{ komirka or "—" }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </table></div>
+  {% endfor %}
+
+  {% if plan.prymitky %}
+    <h2 class="section-title mt-24">Примітки</h2>
+    <p class="hint-info pole-na-vsyu-shyrynu" style="white-space: pre-line;">{{ plan.prymitky }}</p>
+  {% endif %}
+{% endblock %}

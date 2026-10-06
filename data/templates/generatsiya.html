@@ -1,0 +1,470 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Генерація розкладу</h1>
+
+  {# Звичайна школа 1-11 генерується вся одразу (один рівень) - велика задача,
+     "1 хв" тут марна. Для неї варіанти часу 3/5/10 хв, за замовчуванням 10.
+     Багаторівневі заклади генерують кожен рівень окремо (менші задачі) - там
+     лишається й "1 хв" для швидкої перевірки. #}
+  {% set stara_1_11 = settings.tip_zakladu == 'stara_shkola' %}
+  {% set chas_varianty = [(180, "3 хв"), (300, "5 хв"), (600, "10 хв")] if stara_1_11
+       else [(60, "1 хв"), (180, "3 хв"), (300, "5 хв"), (600, "10 хв")] %}
+  {% set chas_default = 600 if stara_1_11 else 300 %}
+
+  <div class="generatsiya-layout">
+    <div class="generatsiya-col-main">
+      <p class="hint-info">
+        Розставляє всі уроки з "Навчального плану" по днях і уроках, без накладок вчителів,
+        класів і кабінетів, з урахуванням доступності та максимуму уроків на день —
+        враховуючи здвоєні уроки, підгрупи, клас-комплекти й парність тижнів.
+      </p>
+      <p class="hint-plain">
+        Визначено фізичних ядер процесора: <strong>{{ settings.fizychni_yadra or "ще не визначено" }}</strong>
+        — використовується для паралельного пошуку. Визначається автоматично один раз
+        при першому запуску, тут лише для довідки.
+      </p>
+
+      {# --- попередження, що БЛОКУЮТЬ генерацію - лишаються над кнопками --- #}
+      {% if klasy_poza_zakladom %}
+        <div class="alert alert-error mt-16">
+          <strong>Є класи поза діапазоном поточного типу закладу</strong> —
+          {% for k in klasy_poza_zakladom %}{{ k.paralel }}{% if k.litera %}-{{ k.litera }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}.
+          Поверніть відповідний рівень у <a href="/nalashtuvannya">"Налаштуваннях школи"</a>
+          або приберіть/перенесіть ці класи в <a href="/klasy">"Класах"</a>. Генерацію
+          заблоковано, доки перелік не стане порожнім.
+        </div>
+      {% endif %}
+
+      {% if obovyazkovyi_podil %}
+        <div class="alert alert-error mt-16">
+          <strong>Обов'язковий поділ на підгрупи не виконано у {{ obovyazkovyi_podil|length }} позиціях</strong> —
+          за нормативом МОН (наказ №128, у редакції №808) для них потрібно призначити вчителя
+          підгрупи 2 в "Навчальному плані". Генерацію заблоковано, доки перелік не стане порожнім.
+        </div>
+        <div class="table-wrap">
+          <table>
+            <tr><th>Клас</th><th>Предмет</th><th>Причина</th><th class="col-actions"></th></tr>
+            {% for p in obovyazkovyi_podil %}
+            <tr>
+              <td>{{ p.klas }}</td>
+              <td>{{ p.predmet }}</td>
+              <td>{{ p.prychyna }}</td>
+              <td>
+                {% if p.mizhpredmetni %}
+                  <a class="btn btn-small" href="/navchalnyj-plan/mizhpredmetni/new?klas_id={{ p.klas_id }}">Виправити</a>
+                {% else %}
+                  <a class="btn btn-small" href="/navchalnyj-plan/klas/{{ p.klas_id }}/predmet/{{ p.predmet_id }}/edit">Виправити</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+      {% endif %}
+
+      {% if kabinety_klasiv.bez_kabinetu %}
+        <p class="hint-warning">
+          <strong>Без домашнього кабінету:</strong> {{ kabinety_klasiv.bez_kabinetu|join(", ") }}.
+          Уроки цих класів стануть у розклад «без кабінету» — задайте кабінет у картці
+          класу (<a href="/klasy">«Класи»</a>). Не блокує, але в розкладі й PDF буде порожньо.
+        </p>
+      {% endif %}
+      {% if kabinety_klasiv.spilni %}
+        <p class="hint-warning">
+          <strong>Один домашній кабінет на кілька класів</strong> (а це не клас-комплект):
+          {% for s in kabinety_klasiv.spilni %}{{ s.kabinet }} — {{ s.klasy }}{% if not loop.last %}; {% endif %}{% endfor %}.
+          Ці класи не можуть бути в одному приміщенні одночасно, тож частина їхніх уроків
+          не розміститься. Дайте кожному класу свій кабінет або об'єднайте їх у
+          <a href="/klas-komplekty">клас-комплект</a>, якщо вони справді вчаться разом.
+        </p>
+      {% endif %}
+
+      {% if rivni|length > 1 %}
+        <div class="alert alert-error mt-16">
+          <strong>Заклад охоплює {{ rivni|length }} рівні</strong> — генеруйте розклад
+          ОКРЕМО для кожного (тривалість уроку різна за віком, наскрізна генерація для
+          вчителів, що працюють у кількох рівнях, технічно некоректна). Генерація одного
+          рівня не зачіпає вже згенерований розклад інших.
+          <strong>Порядок має значення</strong> — генеруйте спочатку той рівень, де вчителі
+          найбільш "затиснуті" (типово початкову школу), а вже потім решту.
+        </div>
+        <div class="table-wrap">
+          <table>
+            <tr><th>Рівень</th><th>Класи</th><th>Зараз у базі уроків</th><th class="col-actions">Дії</th></tr>
+            {% for rs in rivni_stan %}
+            {% set riven_i = loop.index0 %}{# всередині вкладеного циклу кнопок
+               loop.index0 вказував би на КНОПКУ, а не на рівень #}
+            <tr>
+              <td>{{ rs.nazva }}</td>
+              <td>{{ rs.p_vid }}-{{ rs.p_do }}</td>
+              <td>{{ rs.kilkist }}</td>
+              <td>
+                <div class="actions-cell">
+                  {% if obovyazkovyi_podil or klasy_poza_zakladom %}
+                    <span class="form-hint">заблоковано — виправте перелік(и) вище</span>
+                  {% else %}
+                    {% for sek, mitka in chas_varianty %}
+                    <form method="post" class="inline-form generatsiya-forma"
+                          onsubmit="return confirm('Згенерувати розклад для рівня «{{ rs.nazva }}» ({{ rs.p_vid }}-{{ rs.p_do }} класи), {{ mitka }}? Це замінить поточний розклад ЛИШЕ для цього рівня.');">
+                      <input type="hidden" name="riven_idx" value="{{ riven_i }}">
+                      <input type="hidden" name="chas_sekund" value="{{ sek }}">
+                      <input type="hidden" name="zamorozka_data" class="zamorozka-data-pole" value="[]">
+                      <button type="submit" class="btn-small {{ 'btn-secondary' if sek != chas_default else '' }}">{{ mitka }}</button>
+                    </form>
+                    {% endfor %}
+                  {% endif %}
+                  {% if rs.kilkist > 0 %}
+                  <form method="post" action="/generatsiya/vydalyty" class="inline-form"
+                        onsubmit="return confirm('Видалити розклад рівня «{{ rs.nazva }}» ({{ rs.p_vid }}-{{ rs.p_do }} класи)? Дію не можна скасувати, генерація НЕ запуститься автоматично.');">
+                    <input type="hidden" name="p_vid" value="{{ rs.p_vid }}">
+                    <input type="hidden" name="p_do" value="{{ rs.p_do }}">
+                    <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+        {% if rivni_stan|selectattr("kilkist", "gt", 0)|list|length > 0 %}
+          <form method="post" action="/generatsiya/vydalyty" class="mt-16"
+                onsubmit="return confirm('Видалити ВЕСЬ згенерований розклад (усі рівні)? Дію не можна скасувати.');">
+            <button type="submit" class="btn-danger">Видалити весь розклад (усі рівні)</button>
+          </form>
+        {% endif %}
+      {% else %}
+        {% set rs = rivni_stan[0] if rivni_stan else None %}
+        <div class="mt-16">
+          <label>Згенерувати розклад:</label>
+          <div class="actions-cell-inline mt-16">
+            {% if not obovyazkovyi_podil and not klasy_poza_zakladom %}
+            {% for sek, mitka in chas_varianty %}
+            <form method="post" class="inline-form generatsiya-forma"
+                  onsubmit="return confirm('Згенерувати розклад, {{ mitka }}? Це замінить поточний активний розклад.');">
+              <input type="hidden" name="chas_sekund" value="{{ sek }}">
+              <input type="hidden" name="zamorozka_data" class="zamorozka-data-pole" value="[]">
+              <button type="submit" class="{{ 'btn-secondary' if sek != chas_default else '' }}">{{ mitka }}</button>
+            </form>
+            {% endfor %}
+            {% else %}
+              <span class="form-hint">Генерація заблокована — виправте перелік(и) вище.</span>
+            {% endif %}
+            {% if rs and rs.kilkist > 0 %}
+            <form method="post" action="/generatsiya/vydalyty" class="inline-form"
+                  onsubmit="return confirm('Видалити весь згенерований розклад? Дію не можна скасувати.');">
+              <button type="submit" class="btn btn-danger">Видалити розклад ({{ rs.kilkist }} уроків)</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+
+      {# --- рядок «триває генерація» - ОДРАЗУ під кнопками запуску --- #}
+      <div id="generatsiya-timer" style="display:none;" class="alert alert-info mt-16">
+        <strong>Триває генерація розкладу...</strong>
+        Минуло: <span id="generatsiya-timer-sek">0</span> с
+        (може тривати стільки, скільки ви обрали кнопкою часу — до 10 хвилин; solver шукає
+        найкращий варіант без накладок і вікон; сторінка не зависла, зачекайте).
+      </div>
+
+      {# --- підсумок останнього прогону - тут же, під кнопками --- #}
+      {% if result %}
+        {% if result.zberezheno %}
+          <p class="hint-plain mt-16">
+            Показано результат останньої генерації ({{ result.data_chas }}) —
+            не проводилась заново при відкритті сторінки.
+          </p>
+        {% endif %}
+        {% if result.success %}
+          <div class="alert alert-success mt-16">
+            Розклад згенеровано ({{ "Оптимальний" if result.status == "OPTIMAL" else "Прийнятний" }}).
+            Розміщено уроків: {{ result.vseogo_urokiv }}.
+          </div>
+          <div class="table-wrap">
+            <table>
+              <tr>
+                <th>Класів задіяно</th>
+                <th>Вчителів задіяно</th>
+                <th>Предметів задіяно</th>
+                <th>Не розміщено</th>
+                <th>Час генерації</th>
+              </tr>
+              <tr>
+                <td>{{ result.kilkist_klasiv }}</td>
+                <td>{{ result.kilkist_vchyteliv }}</td>
+                <td>{{ result.kilkist_predmetiv }}</td>
+                <td>{{ result.unplaced|length if result.unplaced else 0 }}</td>
+                <td>{{ result.chas_sekund }} с</td>
+              </tr>
+            </table>
+          </div>
+          <a class="btn mt-16" href="/rozklad">Переглянути розклад у браузері</a>
+        {% else %}
+          <div class="alert alert-error mt-16">{{ result.message }}</div>
+          {% if result.chas_sekund %}<p class="hint-plain">Час до помилки: {{ result.chas_sekund }} с</p>{% endif %}
+        {% endif %}
+      {% endif %}
+
+      {# --- нижче в цьому ж (лівому) стовпці: перевищення ємності, пояснення, нерозміщені --- #}
+      {% if navantazhennya %}
+        <div class="alert alert-error mt-24">
+          <strong>Перевищено тижневу ємність у {{ navantazhennya|length }} позиціях</strong> —
+          генерація точно не зможе розмістити всі уроки для них. Зменшіть години в "Навчальному
+          плані"/"Матриці плану", збільшіть кількість уроків на день у "Налаштуваннях школи",
+          або перерозподіліть навантаження між вчителями.
+        </div>
+        <div class="table-wrap">
+          <table>
+            <tr><th>Тип</th><th>Назва</th><th>Потрібно год/тижд</th><th>Максимальна ємність</th><th>Перевищення</th></tr>
+            {% for p in navantazhennya %}
+            <tr>
+              <td>{{ p.typ }}</td>
+              <td>{{ p.nazva }}</td>
+              <td>{{ p.potribno }}</td>
+              <td>{{ p.yomkist }}</td>
+              <td><strong>{{ p.potribno - p.yomkist }}</strong></td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+      {% endif %}
+
+      <div class="mt-24">
+        <h2 class="section-title">Який час обрати?</h2>
+        <p class="hint-note">
+          Чому взагалі кілька варіантів часу, а не один: solver працює рівно стільки, скільки
+          ви обрали, і що довше йому дати — то краще розклад (менше вікон і порожніх днів), але
+          виграш поступово згасає, тож сенс мати кілька позначок, а не тільки максимум.
+        </p>
+        {% if not stara_1_11 %}
+        <p class="hint-note">
+          <strong>1 хв</strong> — зручно для швидкої перевірки після дрібної зміни (доступність
+          одного вчителя, закріплена позиція класу тощо), особливо на невеликому діапазоні
+          (один рівень чи кілька класів).
+        </p>
+        {% endif %}
+        <p class="hint-note">
+          <strong>3 хв</strong> — стандартний варіант для щоденної роботи: помітно краще за
+          найкоротший варіант, не змушує довго чекати.
+        </p>
+        <p class="hint-note">
+          <strong>5 хв</strong> — рекомендовано для фінального робочого розкладу. На
+          <strong>великих</strong> діапазонах (уся школа або ціла гімназія разом) короткий час може
+          суттєво знизити якість — вікна й порожні дні трапляються частіше, бо solver просто не
+          встигає "вигладити" розклад.
+        </p>
+        <p class="hint-note">
+          <strong>10 хв</strong> — для особливо складних випадків (весь заклад одразу, багато
+          підгруп і обмежень), коли 5 хв усе ще лишає помітні вікна — має сенс спробувати, якщо
+          є час почекати, гарантії кращого результату немає, але шанс є.
+        </p>
+      </div>
+
+      {% if result and result.success %}
+        <div class="mt-24">
+          <h2 class="section-title">Що означає цей результат (solver, статус)?</h2>
+          <p class="hint-info">
+            <strong>Що таке solver:</strong> внутрішній механізм, який
+            перебирає можливі варіанти розкладу й шукає той, що задовольняє всі жорсткі
+            правила (без накладок, з урахуванням доступності тощо) і при цьому якнайкраще
+            відповідає м'яким побажанням (без вікон, без порожніх днів). Він працює
+            рівно стільки часу, скільки ви обрали кнопкою вище (1/3/5/10 хв), і зупиняється або
+            коли час вичерпано, або коли доведено, що кращого варіанту вже не знайти.
+          </p>
+
+          {% if result.status == "OPTIMAL" %}
+          <p class="hint-info">
+            <strong>Статус "Оптимальний"</strong> означає: solver не просто знайшов
+            робочий розклад, а й математично довів, що кращого варіанту (з меншою
+            кількістю вікон і порожніх днів) для цих вхідних даних не існує. Перегенерація
+            з тим самим планом і тими самими обмеженнями майже напевно не покращить результат.
+          </p>
+          {% elif result.status == "FEASIBLE" %}
+          <p class="hint-note">
+            <strong>Статус "Прийнятний"</strong> означає: розклад коректний (без накладок),
+            але solver не встиг за відведений час довести, що це найкращий можливий
+            варіант щодо мінімізації вікон — можливо, ще лишились прогалини в розкладі занять.
+            Спробуйте перегенерувати ще раз (з іншого початкового стану пошук іноді дає кращий
+            результат) або збільшіть ліміт часу на генерацію (напр. 5 чи 10 хв замість 1-3).
+          </p>
+          {% endif %}
+        </div>
+
+        {% if result.unplaced %}
+          <div class="alert alert-error mt-24">
+            Не вдалося розмістити {{ result.unplaced|length }} позицій навчального плану
+            (недостатньо вільних слотів при заданих обмеженнях) — див. лист "Конфлікти" в Excel-файлі.
+          </div>
+          <div class="table-wrap">
+            <table>
+              <tr><th>Клас</th><th>Предмет</th><th>Вчитель</th><th>Тиждень</th><th>Не розміщено уроків</th><th>Ймовірна причина</th></tr>
+              {% for u in result.unplaced %}
+              <tr>
+                <td>{{ u.klas }}</td>
+                <td>{{ u.predmet }}</td>
+                <td>{{ u.vchytel }}</td>
+                <td>
+                  {% if u.parnist == "parnyi" %}Парний тижд.
+                  {% elif u.parnist == "neparnyi" %}Непарний тижд.
+                  {% else %}Щотижня{% endif %}
+                </td>
+                <td>{{ u.kilkist }}</td>
+                <td class="wrap-cell">{{ u.prychyna or "—" }}</td>
+              </tr>
+              {% endfor %}
+            </table>
+          </div>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    {% if usi_klasy_json and usi_klasy_json != '[]' %}
+    <div class="generatsiya-col-dohen">
+      <h2 class="section-title">Догенерація — що заморозити (необов'язково)</h2>
+      <p class="hint-info">
+        Клікніть клітинку в матриці збоку, щоб перемкнути стан: <strong>Замінити</strong>
+        (звичайна вільна генерація) → <strong>Можливо</strong> (спробувати зберегти наявний
+        розклад цього дня, але дозволити змінити, якщо за половину відведеного часу нічого
+        путнього не вийшло) → <strong>Не чіпати</strong> (наявний розклад дня лишається точно
+        як є, незалежно від результату). Клік по назві класу чи дня перемикає весь
+        рядок/стовпець. Якщо нічого не позначити — звичайна генерація, як і раніше.
+      </p>
+      <div class="table-wrap mt-16">
+        <table id="zamorozka-grid"></table>
+      </div>
+    </div>
+    <script>
+      initZamorozkaGrid({
+        klasy: {{ usi_klasy_json|safe }},
+        gridId: "zamorozka-grid",
+      });
+    </script>
+    {% endif %}
+  </div>
+
+  <script>
+    (function () {
+      const forms = document.querySelectorAll(".generatsiya-forma");
+      forms.forEach(function (form) {
+        form.addEventListener("submit", function (ev) {
+          // якщо onsubmit (confirm) повернув false, подія submit не станеться взагалі
+          const zamorozkaPole = form.querySelector(".zamorozka-data-pole");
+          if (zamorozkaPole && typeof window.__getZamorozkaData === "function") {
+            zamorozkaPole.value = window.__getZamorozkaData();
+          }
+          const timerBlok = document.getElementById("generatsiya-timer");
+          const timerSek = document.getElementById("generatsiya-timer-sek");
+          timerBlok.style.display = "block";
+          // блокуємо кнопки в УСІХ формах генерації (не лише в цій) - інакше можна
+          // випадково клікнути інший рівень чи інший час, поки перша генерація ще йде
+          forms.forEach(function (f) {
+            f.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+          });
+          let sekund = 0;
+          setInterval(function () {
+            sekund += 1;
+            timerSek.textContent = sekund;
+          }, 1000);
+        });
+      });
+    })();
+  </script>
+
+  {# ================= Збережені варіанти розкладу ================= #}
+  <div class="mt-24">
+    <h2 class="section-title">Збережені варіанти розкладу</h2>
+    <p class="hint-info">
+      Кожна генерація стирає попередній розклад. Щоб не втратити вдалий варіант —
+      збережіть його під назвою; потім будь-який можна повернути як поточний
+      (перегляд, PDF, заміни й догенерація працюватимуть саме від нього).
+      Завантаження замінює поточний розклад цілком — усі рівні одразу; якщо
+      поточний ще потрібен, спершу збережіть і його.
+    </p>
+    {% if ye_rozklad %}
+    <form method="post" action="/rozklad-varianty/zberegty" class="inline-select-group">
+      <label>Назва:</label>
+      <input type="text" name="nazva" maxlength="80" placeholder="напр. Варіант 1 — базовий">
+      <label>Нотатка:</label>
+      <input type="text" name="notatka" maxlength="300" placeholder="необов'язково">
+      <label>Діє з:</label>
+      <input type="date" name="diye_z">
+      <button type="submit" class="btn btn-small">Зберегти поточний розклад як варіант</button>
+    </form>
+    <p class="hint-plain">
+      «Діє з» — з якої дати цей розклад був чинним у школі. Потрібно лише якщо розклад
+      мінявся посеред року: «Залишки годин» (втрачено/відпрацьовано) і «Заміни» беруть
+      для кожної дати той варіант, що діяв тоді. Без дат усюди береться поточний розклад.
+    </p>
+    {% else %}
+    <p class="hint-plain">Поточного розкладу немає — зберігати поки нема чого.</p>
+    {% endif %}
+    {% if varianty %}
+    <div class="table-wrap"><table>
+      <tr>
+        <th>Назва</th><th>Збережено</th><th>Діє з</th><th>Уроків</th><th>Результат</th><th>Нотатка</th>
+        <th class="col-actions"></th>
+      </tr>
+      {% for v in varianty %}
+      <tr>
+        <td>{{ v.nazva }}{% if v.aktyvnyi %} <span class="form-hint">← поточний</span>{% endif %}</td>
+        <td>{{ v.stvoreno }}</td>
+        <td>
+          <form method="post" action="/rozklad-varianty/{{ v.id }}/diye-z" class="inline-form">
+            <input type="date" name="diye_z" value="{{ v.diye_z or '' }}" class="norma-input" style="width:auto;max-width:150px;">
+            <button type="submit" class="btn btn-small btn-secondary" title="Зберегти дату «діє з»">✓</button>
+          </form>
+        </td>
+        <td>{{ v.urokiv }}</td>
+        <td>
+          {% if v.status %}{{ "Оптимальний" if v.status == "OPTIMAL" else "Прийнятний" }}{% if v.nerozmishcheno %}, нерозміщених {{ v.nerozmishcheno }}{% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td class="wrap-cell">{{ v.notatka or "—" }}</td>
+        <td>
+          <div class="actions-cell">
+            <form method="post" action="/rozklad-varianty/{{ v.id }}/zavantazhyty"
+                  onsubmit="return confirm('Зробити варіант «{{ v.nazva }}» поточним розкладом? Поточний розклад буде замінено (якщо він ще потрібен — спершу збережіть його як варіант).');">
+              <button type="submit" class="btn btn-small {{ 'btn-secondary' if v.aktyvnyi else '' }}">Завантажити</button>
+            </form>
+            <form method="post" action="/rozklad-varianty/{{ v.id }}/vydalyty"
+                  onsubmit="return confirm('Видалити варіант «{{ v.nazva }}»? Поточний розклад це не зачепить. Дію не можна скасувати.');">
+              <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </table></div>
+    {% endif %}
+  </div>
+
+  {# ================= САМИЙ НИЗ: таблиця файлів розкладу, на всю ширину ================= #}
+  {% if files %}
+  <div class="mt-24">
+    <h2 class="section-title">Файли розкладу</h2>
+    <form method="post" action="/schedule/delete-all"
+          onsubmit="return confirm('Видалити ВСІ файли розкладу ({{ files|length }})? Дію не можна скасувати.');">
+      <button type="submit" class="btn btn-danger btn-small">Видалити усі розклади</button>
+    </form>
+    <div class="table-wrap"><table>
+      <tr><th>Файл</th><th>Дата</th><th class="col-actions"></th></tr>
+      {% for f in files %}
+      <tr>
+        <td>{{ f.filename }}</td>
+        <td>{{ f.date }}</td>
+        <td>
+          <div class="actions-cell">
+            <a class="btn btn-small" href="/schedule/download/{{ f.filename }}">Завантажити</a>
+            <form method="post" action="/schedule/delete/{{ f.filename }}"
+                  onsubmit="return confirm('Видалити файл {{ f.filename }}? Дію не можна скасувати.');">
+              <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </table></div>
+  </div>
+  {% endif %}
+{% endblock %}

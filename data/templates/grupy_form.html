@@ -1,0 +1,57 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ "Редагувати групу" if grupa and grupa.get("id") else "Нова група" }}</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <label>Паралель</label>
+    {% set paralel = grupa.paralel if grupa else 10 %}
+    <select name="paralel">
+      <option value="10" {{ "selected" if paralel == 10 else "" }}>10 клас</option>
+      <option value="11" {{ "selected" if paralel == 11 else "" }}>11 клас</option>
+      <option value="12" {{ "selected" if paralel == 12 else "" }}>12 клас</option>
+    </select>
+
+    <label>Профіль</label>
+    {% set profil_kod = grupa.profil_kod if grupa else "" %}
+    <select name="profil_kod" required>
+      <option value="">— оберіть —</option>
+      {% set current_klaster = [] %}
+      {% for kod, (klaster_kod, klaster_nazva, profil_kod_korotkyi, profil_nazva) in profily.items() %}
+        {% if klaster_nazva not in current_klaster %}
+          {% if current_klaster %}</optgroup>{% endif %}
+          <optgroup label="{{ klaster_nazva }}">
+          {% set _ = current_klaster.append(klaster_nazva) %}
+        {% endif %}
+        <option value="{{ kod }}" {{ "selected" if profil_kod == kod else "" }}>
+          {{ profil_kod_korotkyi }} — {{ profil_nazva }}
+        </option>
+      {% endfor %}
+      {% if current_klaster %}</optgroup>{% endif %}
+    </select>
+
+    <label>Варіант</label>
+    <input type="text" name="variant" maxlength="20" value="{{ grupa.variant if grupa else '1' }}">
+    <p class="hint-plain">
+      Номер/код варіанта "АБО" з типового плану (напр. "1" — інтегрований курс,
+      "2" — окремі предмети). Якщо в профілі два незалежні "АБО" — можна записати
+      складніше, напр. "МЛ1-ІГ1". Разом із паралеллю й профілем формує назву групи
+      (напр. <code>10-МЛК-МЛ-1</code>).
+    </p>
+
+    <label class="checkbox-label">
+      <input type="checkbox" name="aktyvna" {{ "checked" if not grupa or grupa.get("aktyvna", 1) else "" }}>
+      Активна (бере участь у генерації розкладу)
+    </label>
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/grupy">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Профілі навчання</h1>
+  <a class="btn" href="/profily-navchannya/new">+ Додати предмет</a>
+  <p class="hint-info">
+    Власний навчальний план кожної групи (10-12 клас) — предмети, вчителі й години,
+    які учні цієї групи реально обрали. Орієнтир по годинах — сторінка
+    "Типові навчальні плани" (профілі наказу №1674). Ці години поки НЕ враховуються
+    в "Тарифікації" й "Матриці вчителя".
+  </p>
+
+  {% for g in zapysy_po_grupi %}
+    <h2>
+      {{ g.grupa_nazva }}
+      {% if not g.grupa_aktyvna %}
+        <span class="nazva-unused" title="Неактивна група">(неактивна)</span>
+      {% endif %}
+    </h2>
+    <div class="table-wrap"><table>
+      <tr>
+        <th>Предмет</th>
+        <th>Вчитель</th>
+        <th class="col-narrow">Годин/тиждень</th>
+        <th class="col-actions"></th>
+      </tr>
+      {% for z in g.zapysy %}
+      <tr>
+        <td>{{ z.predmet_nazva }}</td>
+        <td>
+          {% if z.vchytel_pib %}
+            {{ z.vchytel_pib }}
+          {% else %}
+            <span class="nazva-unused" title="Вчитель не призначений">—</span>
+          {% endif %}
+        </td>
+        <td>{{ z.godyn_tyzhden }}</td>
+        <td>
+          <div class="actions-cell">
+            <a class="btn btn-small" href="/profily-navchannya/{{ z.id }}/edit">Редагувати</a>
+            <form method="post" action="/profily-navchannya/{{ z.id }}/delete"
+                  onsubmit="return confirm('Видалити {{ z.predmet_nazva }} з плану групи {{ g.grupa_nazva }}?');">
+              <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td><strong>Разом</strong></td>
+        <td></td>
+        <td><strong>{{ g.razom }}</strong></td>
+        <td></td>
+      </tr>
+    </table></div>
+  {% else %}
+    <p class="hint-plain">Ще немає жодного запису. Спершу створіть групу в розділі "Групи".</p>
+  {% endfor %}
+{% endblock %}

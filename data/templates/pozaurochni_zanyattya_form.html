@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ "Редагувати заняття" if zanyattya else "Нове позаурочне заняття" }}</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <label>Назва</label>
+    <input type="text" name="nazva" required value="{{ zanyattya.nazva if zanyattya else '' }}">
+
+    <label>Тип</label>
+    <select name="typ">
+      {% for key, lbl in POZAUROCHNI_TYPY.items() %}
+        <option value="{{ key }}" {{ "selected" if zanyattya and zanyattya.typ == key else "" }}>{{ lbl }}</option>
+      {% endfor %}
+    </select>
+
+    <label>Фіксовані дні тижня (1-5, пн-пт, необов'язково)</label>
+    <input type="text" name="fiksovanyi_den" placeholder="напр. 2 або 1,4 або 1-3"
+           value="{{ zanyattya.fiksovanyi_den if zanyattya and zanyattya.fiksovanyi_den else '' }}">
+    <p class="hint-info">
+      Один день (напр. "2" — вівторок), кілька через кому ("1,4" — понеділок і четвер,
+      якщо годин на тиждень кілька — розподілиться по цих днях), або діапазон через
+      дефіс ("1-3"). Ставиться одразу після останнього навчального уроку дня для класу
+      (не рахується в денний ліміт уроків). Якщо день не вказано — система сама підбере.
+    </p>
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/pozaurochni-zanyattya">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

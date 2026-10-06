@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <title>{{ app_name }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" sizes="any">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon-32.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</head>
+<body data-dovidka="{{ active|default('', true) }}">
+  <nav id="golovne-menu">
+    <button id="zgortaty-menu-btn" type="button" title="Згорнути/розгорнути меню"></button>
+    <a href="/" class="nav-brand" title="LT-Gen — на головну">
+      <img src="{{ url_for('static', filename='logo-mark.png') }}" alt="" class="nav-brand-mark">
+      <span class="nav-brand-text">LT-Gen</span>
+    </a>
+    <a href="/" class="{{ 'active' if active == 'home' else '' }}">Головна</a>
+
+    <div class="nav-section-label">1. Налаштування</div>
+    <a href="/nalashtuvannya" class="{{ 'active' if active == 'nalashtuvannya' else '' }}">Налаштування школи</a>
+    <a href="/navchalnyj-plan" class="{{ 'active' if active == 'navchalnyj_plan' else '' }}">Навчальний план</a>
+    <a href="/pozaurochnyj-plan" class="{{ 'active' if active == 'pozaurochnyj_plan' else '' }}">Позаурочний план</a>
+
+    <div class="nav-section-label">2. Довідники</div>
+    <a href="/predmety" class="{{ 'active' if active == 'predmety' else '' }}">Предмети</a>
+    <a href="/klasy" class="{{ 'active' if active == 'klasy' else '' }}">Класи</a>
+    <a href="/profily-navchannya" class="{{ 'active' if active == 'profily_navchannya' else '' }}">Профілі навчання</a>
+    <a href="/grupy" class="{{ 'active' if active == 'grupy' else '' }}">Групи</a>
+    <a href="/vchyteli" class="{{ 'active' if active == 'vchyteli' else '' }}">Вчителі</a>
+    <a href="/kabinety" class="{{ 'active' if active == 'kabinety' else '' }}">Кабінети</a>
+    <a href="/klas-komplekty" class="{{ 'active' if active == 'klas_komplekty' else '' }}">Клас-комплекти</a>
+    <a href="/asystenty" class="{{ 'active' if active == 'asystenty' else '' }}">Асистенти</a>
+    <a href="/taryfikatsiya" class="{{ 'active' if active == 'taryfikatsiya' else '' }}">Тарифікація</a>
+
+    <div class="nav-section-label">3. Генерація</div>
+    <a href="/generatsiya" class="{{ 'active' if active == 'generatsiya' else '' }}">Генерація розкладу</a>
+    <a href="/rozklad" class="{{ 'active' if active == 'rozklad' else '' }}">Перегляд розкладу</a>
+    <a href="/zaminy" class="{{ 'active' if active == 'zaminy' else '' }}">Заміни</a>
+    <a href="/zalyshky-godyn" class="{{ 'active' if active == 'zalyshky_godyn' else '' }}">Залишки годин</a>
+
+    <div class="nav-section-label">4. Довідка</div>
+    <a href="/normatyvni-dokumenty" class="{{ 'active' if active == 'normatyvni_dokumenty' else '' }}">Нормативні документи</a>
+    <a href="/typovi-plany" class="{{ 'active' if active == 'typovi_plany' else '' }}">Типові навчальні плани</a>
+
+    <div class="nav-section-label">5. Обслуговування</div>
+    <a href="/rezervni-kopiyi" class="{{ 'active' if active == 'rezervni_kopiyi' else '' }}">Резервні копії</a>
+
+    <div class="logo logo-vnyzu"><span class="logo-versiya">v{{ app_version }}</span></div>
+  </nav>
+  <main>
+    {% if demo_rezhym %}
+      <div class="demo-rezhym-banner">
+        🧪 ДЕМО-РЕЖИМ — відкрито навчальну базу (<code>school-demo.db</code>).
+        Реальні дані школи зараз НЕ відкриті й нічим не ризикують.
+        Перемкнутися назад: <a href="/nalashtuvannya">Налаштування школи</a>.
+      </div>
+    {% endif %}
+    {% if zvit_migratsiyi %}
+      <div class="hint-{{ 'warning' if zvit_migratsiyi.ye_vtrata else 'info' }}">
+        {% if zvit_migratsiyi.ye_vtrata %}
+          ⚠️ Базу оновлено з версії {{ zvit_migratsiyi.stara_versiya }} до
+          {{ zvit_migratsiyi.nova_versiya }} ({{ zvit_migratsiyi.chas }}), але одне з
+          чисел нижче ЗМЕНШИЛОСЬ — перевірте уважно, це не мало статись:
+        {% else %}
+          ✅ Базу успішно оновлено з версії {{ zvit_migratsiyi.stara_versiya }} до
+          {{ zvit_migratsiyi.nova_versiya }} ({{ zvit_migratsiyi.chas }}). Перевірка — усе на місці:
+        {% endif %}
+        <div class="table-wrap mt-8">
+          <table class="migratsiya-tablytsya">
+            <tr><th>Дані</th><th>Було</th><th>Стало</th><th></th></tr>
+            {% for r in zvit_migratsiyi.riadky %}
+            <tr{{ ' class="migratsiya-vtrata"'|safe if r.zmenshylos else '' }}>
+              <td>{{ r.nazva }}</td>
+              <td>{{ r.do if r.do is not none else "—" }}</td>
+              <td>{{ r.pislya if r.pislya is not none else "—" }}</td>
+              <td>
+                {%- if r.zmenshylos %}зменшилось на {{ r.do - r.pislya }}
+                {%- elif r.nova %}нова таблиця
+                {%- elif r.prybrano %}таблицю прибрано (застаріла, даних у ній не було)
+                {%- elif r.do is not none and r.pislya is not none and r.pislya > r.do %}+{{ r.pislya - r.do }}
+                {%- else %}без змін{% endif -%}
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+      </div>
+    {% endif %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'error' if category == 'error' else 'success' }} mt-16">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+    <footer class="app-footer">
+      <strong>LT-Gen</strong> — генератор розкладу уроків ·
+      © 2026 <a href="https://github.com/LT-Gen" target="_blank" rel="noopener">Rogala</a> ·
+      <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL&#8209;3.0</a> ·
+      <a href="https://github.com/LT-Gen/Lesson_Timetable_Generator" target="_blank" rel="noopener">вихідний код</a>
+    </footer>
+  </main>
+</body>
+</html>

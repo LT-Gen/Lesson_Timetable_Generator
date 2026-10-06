@@ -1,0 +1,218 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ "Редагувати запис" if redaguvaty_grupu else "Новий запис навчального плану" }}</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  {% if all_klasy and all_predmety and all_vchyteli %}
+  <form method="post">
+    {% if redaguvaty_grupu %}
+      <input type="hidden" name="klas_id" value="{{ zapys.klas_id }}">
+      <input type="hidden" name="predmet_id" value="{{ zapys.predmet_id }}">
+      <label>Клас</label>
+      <p>{{ klas_nazva_str }}</p>
+      <label>Предмет</label>
+      <p>{{ predmet_nazva_str }}</p>
+      <p class="hint-note">Клас і предмет цього запису не можна змінити тут — видаліть і заведіть заново, якщо треба перенести в інший клас/предмет.</p>
+    {% else %}
+      <label>Клас</label>
+      {% set k_id = zapys.klas_id if zapys and zapys.klas_id else None %}
+      <select name="klas_id" required>
+        <option value="">— оберіть —</option>
+        {% for k in all_klasy %}
+          <option value="{{ k.id }}" {{ "selected" if k_id == k.id else "" }}>{{ k.paralel }}{% if k.litera %}-{{ k.litera }}{% endif %}</option>
+        {% endfor %}
+      </select>
+
+      <label>Предмет</label>
+      {% set p_id = zapys.predmet_id if zapys and zapys.predmet_id else None %}
+      <select name="predmet_id" required>
+        <option value="">— оберіть —</option>
+        {% for p in all_predmety %}
+          <option value="{{ p.id }}" {{ "selected" if p_id == p.id else "" }}>{{ p.nazva }}</option>
+        {% endfor %}
+      </select>
+    {% endif %}
+    {% if zlyty_pidtverdzheno %}<input type="hidden" name="zlyty_pidtverdzheno" value="1">{% endif %}
+
+    <label>Вчитель</label>
+    {% set v_id = zapys.vchytel_id if zapys and zapys.vchytel_id else None %}
+    <select name="vchytel_id" required>
+      <option value="">— оберіть —</option>
+      {% for v in all_vchyteli %}
+        <option value="{{ v.id }}" {{ "selected" if v_id == v.id else "" }}>{{ v.pib }}</option>
+      {% endfor %}
+    </select>
+
+    <label>Годин на тиждень</label>
+    <div class="form-row-inline">
+      <div>
+        <label class="form-sublabel">Щотижня</label>
+        <input type="number" name="godyn_oboydva" min="0"
+               value="{{ zapys.godyn_oboydva if zapys and zapys.godyn_oboydva else 0 }}">
+      </div>
+      <div>
+        <label class="form-sublabel">Лише парний тиждень</label>
+        <input type="number" name="godyn_parnyi" min="0"
+               value="{{ zapys.godyn_parnyi if zapys and zapys.godyn_parnyi else 0 }}">
+      </div>
+      <div>
+        <label class="form-sublabel">Лише непарний тиждень</label>
+        <input type="number" name="godyn_neparnyi" min="0"
+               value="{{ zapys.godyn_neparnyi if zapys and zapys.godyn_neparnyi else 0 }}">
+      </div>
+    </div>
+    <p class="hint-info">
+      Для дробового навантаження (напр. 2.5 год/тиждень середньо) залиште "Щотижня" =
+      цілій частині (2) і додайте 1 в "Лише парний" АБО "Лише непарний" — урок
+      ставитиметься в цей тиждень раз на два тижні. Парність поточного тижня
+      визначається за датою "Початок 1 семестру" й прапорцем "Перший тиждень
+      непарний" у Налаштуваннях школи.
+    </p>
+    {% if balans %}
+      <div class="balans-box" id="balans-box"
+           data-baza-parnyi="{{ balans.parnyi }}" data-baza-neparnyi="{{ balans.neparnyi }}"
+           data-predmety-vaha="{{ predmety_vaha_json }}"
+           {# норма МОН і фактичні години класу по тижнях БЕЗ цього предмета -
+              щоб підказка не радила тиждень, який уже впирається в стелю #}
+           data-norma="{{ norma_hranychna|default('', true) }}"
+           data-bazovi-parnyi="{{ bazovi_parnyi|default(0, true) }}"
+           data-bazovi-neparnyi="{{ bazovi_neparnyi|default(0, true) }}"
+           data-predmety-hranychne="{{ predmety_hranychne_json|default('{}', true) }}">
+        Порада для вибору парного/непарного:
+        <span id="balans-text"></span>
+      </div>
+    {% endif %}
+
+    <label>Здвоєних пар на тиждень</label>
+    <input type="number" name="zdvoyeni_pary" min="0"
+           value="{{ zapys.zdvoyeni_pary if zapys and zapys.zdvoyeni_pary else 0 }}">
+
+    <label>Максимум уроків цього предмета на день</label>
+    <input type="number" name="maks_urokiv_den" min="1" max="3"
+           value="{{ zapys.maks_urokiv_den if zapys and zapys.maks_urokiv_den else 1 }}">
+
+    <label>Закріплений день тижня для цього класу (необов'язково)</label>
+    {% set fd = zapys.fiksovanyi_den if zapys and zapys.fiksovanyi_den else None %}
+    <select name="fiksovanyi_den">
+      <option value="">— не закріплено (як задано в предметі, якщо задано) —</option>
+      {% for i, nazva in [(1, "Понеділок"), (2, "Вівторок"), (3, "Середа"), (4, "Четвер"), (5, "П'ятниця")] %}
+        <option value="{{ i }}" {{ "selected" if fd == i else "" }}>{{ nazva }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint-info">
+      Перевизначає "Закріплений день" із картки предмета САМЕ для цього класу — напр.
+      той самий предмет може бути щочетверга в одному класі й щоп'ятниці в іншому.
+    </p>
+
+    {% if porada_movy %}
+      <p class="hint-note">
+        {{ porada_movy }}
+        <a href="/navchalnyj-plan/mizhpredmetni/new?klas_id={{ zapys.klas_id if zapys else '' }}">Перейти до "Міжпредметні групи поділу" →</a>
+      </p>
+    {% endif %}
+
+    {% if porada_podilu and not (zapys and zapys.pidgrupa_2_vchytel_id) %}
+      <p class="hint-note">{{ porada_podilu }}</p>
+    {% endif %}
+
+    <label>Вчитель підгрупи 2 (якщо клас ділиться на 2 підгрупи)</label>
+    {% set v2_id = zapys.pidgrupa_2_vchytel_id if zapys and zapys.pidgrupa_2_vchytel_id else None %}
+    <select name="pidgrupa_2_vchytel_id">
+      <option value="">— немає (клас не ділиться) —</option>
+      {% for v in all_vchyteli %}
+        <option value="{{ v.id }}" {{ "selected" if v2_id == v.id else "" }}>{{ v.pib }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint-info">
+      Обидві підгрупи займають той самий слот розкладу класу одночасно (клас не
+      подвоюється), але з різними вчителями й, як правило, різними кабінетами.
+      Основний вчитель (вище) веде підгрупу 1.
+    </p>
+    <p class="hint-note">
+      Якщо на обидві підгрупи один і той самий вчитель (рідкісний випадок - одна
+      людина не може вести дві групи одночасно) - оберіть того самого вчителя тут:
+      генератор тоді планує лише підгрупу 2 як реальний урок, а підгрупа 1
+      показується в розкладі просто як допис "(0 урок 1 підгрупа)", без окремого
+      запланованого слота, а також стає останнім уроком дня.
+    </p>
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/navchalnyj-plan">Скасувати</a>
+    </div>
+  </form>
+
+  <script>
+    (function () {
+      const box = document.getElementById("balans-box");
+      if (!box) return;
+      const bazaParnyi = parseFloat(box.dataset.bazaParnyi) || 0;
+      const bazaNeparnyi = parseFloat(box.dataset.bazaNeparnyi) || 0;
+      const vahaMapa = JSON.parse(box.dataset.predmetyVaha || "{}");
+      const text = document.getElementById("balans-text");
+      const predmetPole = document.querySelector('[name="predmet_id"]');
+      const parnyiPole = document.querySelector('[name="godyn_parnyi"]');
+      const neparnyiPole = document.querySelector('[name="godyn_neparnyi"]');
+      const oboydvaPole = document.querySelector('[name="godyn_oboydva"]');
+      // норма МОН (граничне навантаження класу без фізкультури) і години класу
+      // по тижнях БЕЗ цього предмета - для другої половини підказки
+      const norma = parseFloat(box.dataset.norma) || 0;
+      const bazoviParnyi = parseFloat(box.dataset.bazoviParnyi) || 0;
+      const bazoviNeparnyi = parseFloat(box.dataset.bazoviNeparnyi) || 0;
+      const hranychneMapa = JSON.parse(box.dataset.predmetyHranychne || "{}");
+
+      function pererakhuvaty() {
+        const predmetId = predmetPole ? predmetPole.value : "";
+        const vaha = vahaMapa[predmetId] || 0;
+        const parnyiHodyn = parseFloat(parnyiPole ? parnyiPole.value : 0) || 0;
+        const neparnyiHodyn = parseFloat(neparnyiPole ? neparnyiPole.value : 0) || 0;
+        const parnyi = bazaParnyi + parnyiHodyn * vaha;
+        const neparnyi = bazaNeparnyi + neparnyiHodyn * vaha;
+
+        let porada;
+        if (Math.abs(parnyi - neparnyi) < 0.01) {
+          porada = "тижні лишаться приблизно порівну навантаженими.";
+        } else {
+          porada = "новий дробовий предмет краще покласти на " +
+            (parnyi > neparnyi ? "непарний" : "парний") +
+            " тиждень, щоб тижні лишались приблизно порівну навантаженими.";
+        }
+        let riadok = "зараз сумарна складність предметів цього класу - парний тиждень " +
+          parnyi.toFixed(1) + ", непарний " + neparnyi.toFixed(1) + " - " + porada;
+
+        // друга половина: чи влазять тижні в норму МОН. Предмет, який не
+        // враховується у граничному навантаженні (фізкультура), годин не додає.
+        if (norma) {
+          const vhodyt = hranychneMapa[predmetId] === 0 ? 0 : 1;
+          const oboydvaHodyn = parseFloat(oboydvaPole ? oboydvaPole.value : 0) || 0;
+          const godynParnyi = bazoviParnyi + (oboydvaHodyn + parnyiHodyn) * vhodyt;
+          const godynNeparnyi = bazoviNeparnyi + (oboydvaHodyn + neparnyiHodyn) * vhodyt;
+          riadok += " Годин на тиждень при цьому вводі: парний " +
+            godynParnyi + ", непарний " + godynNeparnyi + " при нормі " + norma + ".";
+          const perevyshcheno = [];
+          if (godynParnyi > norma) perevyshcheno.push("парний");
+          if (godynNeparnyi > norma) perevyshcheno.push("непарний");
+          if (perevyshcheno.length) {
+            riadok += " УВАГА: " + perevyshcheno.join(" і ") +
+              " тиждень перевищує граничне навантаження класу.";
+            box.classList.add("balans-perevyshcheno");
+          } else {
+            box.classList.remove("balans-perevyshcheno");
+          }
+        }
+        text.textContent = riadok;
+      }
+
+      [predmetPole, parnyiPole, neparnyiPole, oboydvaPole].forEach(function (el) {
+        if (el) el.addEventListener("input", pererakhuvaty);
+      });
+      pererakhuvaty();
+    })();
+  </script>
+  {% endif %}
+{% endblock %}

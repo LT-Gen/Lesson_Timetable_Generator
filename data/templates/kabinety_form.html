@@ -1,0 +1,97 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ "Редагувати кабінет" if kabinet and kabinet.get("id") else "Новий кабінет" }}</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <label>Назва / номер</label>
+    <input type="text" name="nazva" required value="{{ kabinet.nazva if kabinet else '' }}">
+
+    <label>Місткість (макс. учнів)</label>
+    <input type="number" name="mistkist" min="1" required value="{{ kabinet.mistkist if kabinet else '' }}">
+
+    <label>Тип прив'язки</label>
+    {% set typ = kabinet.typ_pryvyazky if kabinet else 'universalnyi' %}
+    <select name="typ_pryvyazky" id="typ_pryvyazky">
+      <option value="universalnyi" {{ "selected" if typ == "universalnyi" else "" }}>Універсальний (будь-який предмет)</option>
+      <option value="predmet" {{ "selected" if typ == "predmet" else "" }}>За предметом(ами)</option>
+      <option value="vchytel" {{ "selected" if typ == "vchytel" else "" }}>За вчителем</option>
+      <option value="kombinatsiya" {{ "selected" if typ == "kombinatsiya" else "" }}>Комбінація (предмет + вчитель)</option>
+    </select>
+
+    <div id="predmety-block" class="details-content">
+      <label>Дозволені предмети</label>
+      {% set selected_ids = kabinet.predmet_ids if kabinet and kabinet.predmet_ids else [] %}
+      {% if all_predmety %}
+      <div class="checkbox-2col">
+        {% for p in all_predmety %}
+          <label class="checkbox-label">
+            <input type="checkbox" name="predmet_ids" value="{{ p.id }}"
+                   {{ "checked" if p.id in selected_ids else "" }}>
+            {{ p.nazva }}
+          </label>
+        {% endfor %}
+      </div>
+      {% else %}
+        <p class="hint-plain">Спершу додайте предмети в розділі "Предмети".</p>
+      {% endif %}
+    </div>
+
+    <div id="vchyteli-block" class="details-content">
+      <label>Дозволені вчителі</label>
+      {% set selected_vchytel_ids = kabinet.vchytel_ids if kabinet and kabinet.vchytel_ids else [] %}
+      {% if all_vchyteli %}
+      <div class="checkbox-2col">
+        {% for v in all_vchyteli %}
+          <label class="checkbox-label">
+            <input type="checkbox" name="vchytel_ids" value="{{ v.id }}"
+                   {{ "checked" if v.id in selected_vchytel_ids else "" }}>
+            {{ v.pib }}
+          </label>
+        {% endfor %}
+      </div>
+      {% else %}
+        <p class="hint-plain">Спершу додайте вчителів у розділі "Вчителі".</p>
+      {% endif %}
+    </div>
+
+    {% if riven_kolonky %}
+      <label>Рівні використання</label>
+      <p class="hint-plain">Захист від помилки призначення — на які рівні школи можна
+        призначати цей кабінет у навчальному плані.</p>
+      <div class="checkbox-row">
+        {% for kod, nazva, _ in riven_kolonky %}
+          <label class="checkbox-label">
+            <input type="checkbox" name="{{ kod }}"
+                   {{ "checked" if not kabinet or kabinet.get(kod, 1) else "" }}>
+            {{ nazva }}
+          </label>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if kabinet and kabinet.get("id") %}
+      <p class="hint-plain">
+        Мінімальна місткість, корпус, поверх, пріоритет — на сторінці
+        <a href="/kabinety/{{ kabinet.id }}/dodatkovo">"Додатково"</a> (доступна після збереження).
+      </p>
+    {% endif %}
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/kabinety">Скасувати</a>
+    </div>
+  </form>
+
+  <script>
+    toggleBlocksBySelect("typ_pryvyazky", {
+      "predmety-block": ["predmet", "kombinatsiya"],
+      "vchyteli-block": ["vchytel", "kombinatsiya"],
+    });
+  </script>
+{% endblock %}

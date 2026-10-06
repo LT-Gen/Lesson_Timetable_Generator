@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Масове додавання вчителів</h1>
+  <p class="hint-plain">
+    Введіть по одному ПІБ у кожному рядку. Дублікати (за точним співпадінням імені) буде пропущено.
+    Інші поля (кабінет, доступність тощо) можна буде додати потім через "Редагувати".
+  </p>
+
+  {% if message %}
+    <div class="alert alert-success">
+      {{ message }}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <label>Перелік ПІБ (по одному на рядок)</label>
+    <textarea name="pib_list" rows="15"
+              placeholder="Іванов Іван Іванович&#10;Петренко Марія Олексіївна&#10;Сидоренко Ольга Василівна"></textarea>
+
+    <div>
+      <button type="submit">Додати всіх</button>
+      <a class="btn btn-secondary" href="/vchyteli">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

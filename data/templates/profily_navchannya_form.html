@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ "Редагувати запис" if zapys and zapys.get("id") else "Новий запис плану" }}</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  {% if not all_grupy %}
+    <p class="hint-warning">Немає жодної групи — спершу створіть групу в розділі "Групи".</p>
+  {% else %}
+    <form method="post">
+      <label>Група</label>
+      {% set grupa_id = zapys.grupa_id if zapys else None %}
+      <select name="grupa_id" required>
+        <option value="">— оберіть —</option>
+        {% for g in all_grupy %}
+          <option value="{{ g.id }}" {{ "selected" if grupa_id == g.id else "" }}>
+            {{ g.nazva }}{{ "" if g.aktyvna else " (неактивна)" }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <label>Предмет</label>
+      {% set predmet_id = zapys.predmet_id if zapys else None %}
+      <select name="predmet_id" required>
+        <option value="">— оберіть —</option>
+        {% for p in all_predmety %}
+          <option value="{{ p.id }}" {{ "selected" if predmet_id == p.id else "" }}>{{ p.nazva }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint-plain">
+        Немає потрібного предмета (напр. "Інтегрований курс літератур", "Інтегрований
+        курс історії та громадянської освіти" — профільні предмети з наказу №1674)?
+        Додайте його спершу в <a href="/predmety/new" target="_blank">Предметах</a>
+        (або <a href="/predmety/bulk" target="_blank">масовим додаванням</a> кількох
+        одразу) — обидва відкриються в новій вкладці, ця форма нікуди не зникне.
+      </p>
+
+      <label>Вчитель</label>
+      {% set vchytel_id = zapys.vchytel_id if zapys else None %}
+      <select name="vchytel_id" required>
+        <option value="">— оберіть —</option>
+        {% for v in all_vchyteli %}
+          <option value="{{ v.id }}" {{ "selected" if vchytel_id == v.id else "" }}>{{ v.pib }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint-plain">
+        Ці години поки НЕ враховуються в "Тарифікації" й "Матриці вчителя" —
+        лише в плані самої групи.
+      </p>
+
+      <label>Годин на тиждень</label>
+      <input type="number" name="godyn_tyzhden" min="1" required
+             value="{{ zapys.godyn_tyzhden if zapys else '' }}">
+
+      <div>
+        <button type="submit">Зберегти</button>
+        <a class="btn btn-secondary" href="/profily-navchannya">Скасувати</a>
+      </div>
+    </form>
+  {% endif %}
+{% endblock %}

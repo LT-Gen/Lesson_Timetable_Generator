@@ -1,0 +1,16 @@
+# Дані та згенеровані файли — не потрапляють у git, лишаються на комп'ютері.
+# У кожній з цих папок зберігається лише README.md з описом.
+/base/*
+!/base/README.md
+/schedule/*
+!/schedule/README.md
+/python/*
+!/python/README.md
+
+# Python
+__pycache__/
+*.pyc
+
+# Автоматичні резервні копії бази (створює db.py перед оновленням структури)
+*.db-journal
+school_v*.db

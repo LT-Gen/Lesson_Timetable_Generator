@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Позаурочний план</h1>
+  <p class="hint-plain">Розподіл позаурочних занять по класах: клас + заняття + вчитель + кабінет + години.</p>
+  <a class="btn" href="/pozaurochnyj-plan/new">+ Додати запис</a>
+  <a class="btn btn-secondary" href="/pozaurochni-zanyattya">Каталог занять</a>
+
+  <div class="table-wrap mt-16">
+    <table>
+      <tr>
+        <th>Клас</th>
+        <th>Заняття</th>
+        <th>Тип</th>
+        <th>Вчитель</th>
+        <th>Кабінет</th>
+        <th>Год/тижд</th>
+        <th>Закр. день</th>
+        <th class="col-actions"></th>
+      </tr>
+      {% for z in zapysy %}
+      {% set efektyvnyi_den = z.fiksovanyi_den or z.zanyattya_fiksovanyi_den %}
+      <tr>
+        <td>{{ klas_nazva(z.paralel, z.litera) }}</td>
+        <td>{{ z.zanyattya_nazva }}</td>
+        <td>{{ POZAUROCHNI_TYPY.get(z.zanyattya_typ, z.zanyattya_typ) }}</td>
+        <td>{{ z.vchytel_pib }}</td>
+        <td>{{ z.kabinet_nazva or "—" }}</td>
+        <td>{{ z.godyn_tyzhden }}</td>
+        <td>
+          {% if efektyvnyi_den %}
+            {% for d in (efektyvnyi_den|string).split(",") %}{{ ["Пн", "Вт", "Ср", "Чт", "Пт"][d|int - 1] }}{% if not loop.last %}, {% endif %}{% endfor %}
+            {% if not z.fiksovanyi_den %}<span class="form-hint">(із заняття)</span>{% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          <div class="actions-cell">
+            <a class="btn btn-small" href="/pozaurochnyj-plan/{{ z.id }}/edit">Редагувати</a>
+            <form method="post" action="/pozaurochnyj-plan/{{ z.id }}/delete"
+                  onsubmit="return confirm('Видалити цей запис?');">
+              <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="empty-row">Записів ще немає</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ "Редагувати запис" if zapys else "Новий запис позаурочного плану" }}</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <label>Клас (або клас-комплект — заняття створиться одразу всім членам групи)</label>
+    <select name="klas_id" required>
+      <option value="">— оберіть —</option>
+      {% if vsi_komplekty %}
+        <optgroup label="Клас-комплекти (усім членам одразу)">
+          {% for kk in vsi_komplekty %}
+            <option value="komplekt-{{ kk.id }}">{{ kk.nazva }} ({{ kk.chleny|join(", ") }})</option>
+          {% endfor %}
+        </optgroup>
+        <optgroup label="Окремі класи">
+          {% for k in all_klasy %}
+            <option value="{{ k.id }}" {{ "selected" if zapys and zapys.klas_id == k.id else "" }}>{{ klas_nazva(k.paralel, k.litera) }}</option>
+          {% endfor %}
+        </optgroup>
+      {% else %}
+        {% for k in all_klasy %}
+          <option value="{{ k.id }}" {{ "selected" if zapys and zapys.klas_id == k.id else "" }}>{{ klas_nazva(k.paralel, k.litera) }}</option>
+        {% endfor %}
+      {% endif %}
+    </select>
+    {% if zapys %}
+      <p class="hint-note">При редагуванні наявного запису вибір клас-комплекту недоступний — редагуйте кожен запис члена групи окремо.</p>
+    {% endif %}
+
+    <label>Заняття</label>
+    <select name="zanyattya_id" required>
+      <option value="">— оберіть заняття —</option>
+      {% for z in all_zanyattya %}
+        <option value="{{ z.id }}" {{ "selected" if zapys and zapys.zanyattya_id == z.id else "" }}>{{ z.nazva }}</option>
+      {% endfor %}
+    </select>
+
+    <label>Вчитель</label>
+    <select name="vchytel_id" required>
+      <option value="">— оберіть вчителя —</option>
+      {% for v in all_vchyteli %}
+        <option value="{{ v.id }}" {{ "selected" if zapys and zapys.vchytel_id == v.id else "" }}>{{ v.pib }}</option>
+      {% endfor %}
+    </select>
+
+    <label>Кабінет (необов'язково)</label>
+    <select name="domashniy_kabinet_id">
+      <option value="">— не вказано —</option>
+      {% for k in all_kabinety %}
+        <option value="{{ k.id }}" {{ "selected" if zapys and zapys.domashniy_kabinet_id == k.id else "" }}>{{ k.nazva }}</option>
+      {% endfor %}
+    </select>
+
+    <label>Годин на тиждень</label>
+    <input type="number" name="godyn_tyzhden" min="1" max="10"
+           value="{{ zapys.godyn_tyzhden if zapys else 1 }}">
+
+    <label>Закріплений день тижня для цього класу (необов'язково)</label>
+    <input type="text" name="fiksovanyi_den" placeholder="напр. 2 або 1,4 або 1-3"
+           value="{{ zapys.fiksovanyi_den if zapys and zapys.fiksovanyi_den else '' }}">
+    <p class="hint-info">
+      Перевизначає "Фіксовані дні тижня" із картки заняття САМЕ для цього класу —
+      напр. Виховна година може бути щовівторка в одному класі й щосереди в іншому.
+      Якщо не задано — використовується день(і) із картки заняття (якщо там задано),
+      інакше система сама підбере.
+    </p>
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/pozaurochnyj-plan">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Резервні копії</h1>
+
+  {# Два стовпці: ліворуч щоденне (створити копію + список наявних, там широка
+     таблиця), праворуч рідковживані небезпечні дії - імпорт чужого файлу й
+     повне очищення бази. #}
+  <div class="kopiyi-layout">
+    <div>
+      <div>
+        <h2 class="section-title">Створити копію</h2>
+        <p class="hint-info">
+          Копіює поточну базу у файл і одразу скачує його в браузер — збережіть цей файл
+          ПОЗА цим комп'ютером (флешка, хмара), інакше копія не рятує від краху диска чи
+          випадкового видалення папки. Копія водночас лишається й тут, у списку нижче.
+        </p>
+        <form method="post" action="/rezervni-kopiyi/stvoryty">
+          <button type="submit">Створити й скачати копію</button>
+        </form>
+      </div>
+
+      <div class="mt-24">
+        <h2 class="section-title">Наявні копії</h2>
+        <p class="hint-plain">
+          Тут і автоматичні копії (робляться самі перед оновленням версії застосунку), і
+          зроблені вручну кнопкою вище. Видно ~10 останніх, решта — прокруткою вниз.
+        </p>
+        <div class="table-wrap table-wrap-scroll"><table>
+          <tr><th>Файл</th><th>Дата</th><th>Розмір</th><th class="col-actions"></th></tr>
+          {% for k in kopiyi %}
+          <tr>
+            <td>{{ k.filename }}</td>
+            <td>{{ k.date }}</td>
+            <td>{{ k.rozmir_kb }} КБ</td>
+            <td>
+              <div class="actions-cell">
+                <a class="btn btn-small" href="/rezervni-kopiyi/zavantazhyty/{{ k.filename }}">Завантажити</a>
+                <form method="post" action="/rezervni-kopiyi/vidnovyty/{{ k.filename }}"
+                      onsubmit="return confirm('Відновити базу з копії «{{ k.filename }}»? ПОТОЧНА база буде повністю замінена (перед цим автоматично зроблено її бекап). Після відновлення застосунок ТРЕБА перезапустити.');">
+                  <button type="submit" class="btn btn-secondary btn-small">Відновити</button>
+                </form>
+                <form method="post" action="/rezervni-kopiyi/vydalyty/{{ k.filename }}"
+                      onsubmit="return confirm('Видалити файл копії «{{ k.filename }}»? Дію не можна скасувати.');">
+                  <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="empty-row">Копій ще немає</td></tr>
+          {% endfor %}
+        </table></div>
+      </div>
+    </div>
+
+    <div>
+      <div>
+        <h2 class="section-title">Імпорт з файлу</h2>
+        <p class="hint-warning">
+          Завантажте файл резервної копії (напр. з іншого комп'ютера чи хмари) — ПОТОЧНА
+          база буде повністю очищена й замінена цим файлом (перед цим автоматично зроблено
+          бекап поточної). Версію імпортованої копії перевіряти вручну не треба — застосунок
+          сам підтягне її до поточної схеми при наступному запуску, для цього й існують версії.
+        </p>
+        <form method="post" action="/rezervni-kopiyi/importuvaty" enctype="multipart/form-data"
+              onsubmit="return confirm('Замінити ПОТОЧНУ базу файлом, який ви обрали? Поточні дані буде повністю очищено (перед цим автоматично зроблено бекап). Після імпорту застосунок ТРЕБА перезапустити.');">
+          <input type="file" name="fajl" accept=".db" required>
+          <button type="submit" class="mt-16">Імпортувати</button>
+        </form>
+      </div>
+
+      <div class="mt-24">
+        <h2 class="section-title">Новий навчальний рік</h2>
+        <p class="hint-info">
+          Щорічно в серпні: випускні класи видаляються, решта переходять на рік уперед зі
+          своїми вчителями, плани перебудовуються за торішніми зразками, річне (розклад,
+          заміни, календар) стирається. Довідники лишаються. Спершу показується, що саме
+          станеться, і потрібне підтвердження.
+        </p>
+        <a class="btn btn-secondary" href="/novyi-navchalnyi-rik">Перейти на новий навчальний рік…</a>
+      </div>
+
+      <div class="mt-24">
+        <h2 class="section-title">Очистити базу</h2>
+        <p class="hint-warning">
+          Видаляє ВСІ дані школи — класи, предмети, кабінети, вчителів, навчальний план,
+          згенерований розклад, тарифікацію, асистентів, міжпредметні групи. Лишаються
+          тільки налаштування школи (тип закладу, дзвінки, навчальний рік) — зручно для
+          старту нового навчального року на тій самій структурі. Перед очищенням
+          автоматично робиться бекап. Перезапуск не потрібен.
+        </p>
+        <form method="post" action="/rezervni-kopiyi/ochystyty"
+              onsubmit="return confirm('Останнє підтвердження: очистити базу повністю (лишиться тільки структура налаштувань)? Дію не можна скасувати (але бекап буде).');">
+          <label>Введіть слово <strong>ВИДАЛИТИ</strong>, щоб підтвердити</label>
+          <input type="text" name="pidtverdzhennya" required autocomplete="off">
+          <button type="submit" class="btn btn-danger mt-16">Очистити базу</button>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Позаурочні заняття</h1>
+  <p class="hint-info">
+    Виховна година, ГПД, консультації, факультативи, гуртки — окремо від навчальних
+    предметів. Не входять у денний ліміт уроків класу, але так само перевіряються
+    на конфлікт вчителя/кабінету/класу.
+  </p>
+  <p class="hint-warning">
+    Прапорець <strong>«Активне»</strong> — швидко вимкнути заняття перед генерацією
+    (усі його рядки позаурочного плану пропускаються, записи не видаляються). Зручно
+    перевірити розклад без частини позаурочки.
+  </p>
+  <a class="btn" href="/pozaurochni-zanyattya/new">+ Додати заняття</a>
+  <a class="btn btn-secondary" href="/pozaurochnyj-plan">Позаурочний план (розподіл по класах)</a>
+
+  <div class="table-wrap mt-16">
+    <table>
+      <tr>
+        <th>Активне</th>
+        <th>Назва</th>
+        <th>Тип</th>
+        <th>Фіксований день</th>
+        <th class="col-actions"></th>
+      </tr>
+      {% for z in zanyattya %}
+      <tr{{ ' class="row-vymkneno"' | safe if not z.aktyvne else '' }}>
+        <td>
+          <form method="post" action="/pozaurochni-zanyattya/{{ z.id }}/toggle" style="margin:0">
+            <input type="checkbox" name="aktyvne" title="ВКЛ / ВИКЛ для генерації"
+                   {{ "checked" if z.aktyvne else "" }} onchange="this.form.submit()">
+          </form>
+        </td>
+        <td>{{ z.nazva }}</td>
+        <td>{{ POZAUROCHNI_TYPY.get(z.typ, z.typ) }}</td>
+        <td>{{ z.fiksovanyi_den or "—" }}</td>
+        <td>
+          <div class="actions-cell">
+            <a class="btn btn-small" href="/pozaurochni-zanyattya/{{ z.id }}/edit">Редагувати</a>
+            <form method="post" action="/pozaurochni-zanyattya/{{ z.id }}/delete"
+                  onsubmit="return confirm('Видалити заняття {{ z.nazva }}?');">
+              <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty-row">Позаурочних занять ще немає</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endblock %}

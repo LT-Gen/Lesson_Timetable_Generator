@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ "Редагувати предмет" if predmet and predmet.get("id") else "Новий предмет" }}</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <label>Назва</label>
+    <input type="text" name="nazva" required value="{{ predmet.nazva if predmet else '' }}">
+
+    <label>Скорочення</label>
+    <input type="text" name="skorochennya" value="{{ predmet.skorochennya if predmet and predmet.skorochennya else '' }}">
+
+    <label class="checkbox-label mt-16">
+      <input type="checkbox" name="zdvoyeni_urok"
+             {{ "checked" if predmet and predmet.zdvoyeni_urok else "" }}>
+      Обов'язкова пара (здвоєні уроки, задані в навчальному плані, ставляться РАЗОМ,
+      генератор не підмінить їх двома окремими уроками)
+    </label>
+
+    <label>Правило поділу на підгрупи</label>
+    {% set pravylo = predmet.podil_pravylo if predmet else 'nikoly' %}
+    <select name="podil_pravylo">
+      <option value="nikoly" {{ "selected" if pravylo == "nikoly" else "" }}>Ніколи</option>
+      <option value="avto" {{ "selected" if pravylo == "avto" else "" }}>Авто (за нормативом МОН)</option>
+    </select>
+
+    {% set normovanyi_kod = predmet.normovanyi_kod if predmet and predmet.normovanyi_kod else None %}
+    {% set norma_predmeta = NORMY_PODILU_PIDGRUPY.get(normovanyi_kod) if normovanyi_kod else None %}
+    {% if pravylo == "avto" %}
+      {% if norma_predmeta %}
+        <p class="hint-info">
+          Довідково (<a href="/normatyvni-dokumenty#nakaz-128" target="_blank">наказ МОН №128, у редакції №808</a>):
+          {% for d in norma_predmeta.diapazony %}
+            {{ d.vid }}-{{ d.do }} кл. —
+            {% if norma_predmeta.typ == "grupy_bez_porogu" %}
+              {{ d.kilkist_grup }} групи мінімум по {{ d.min_u_grupi }} осіб
+            {% else %}
+              {{ d.porih_miska }} учнів{% if d.porih_silska != d.porih_miska %} (місто) / {{ d.porih_silska }} (село){% endif %}
+              {%- if norma_predmeta.za_stattyu %}, поділ за статтю (хлопці окремо / дівчата окремо){% endif %}
+            {% endif %}
+            {%- if not loop.last %}; {% endif %}
+          {% endfor %}
+          {% if norma_predmeta.movy_menshyn_porih_miska is defined %}
+            ; для класів з мовою навчання нацменшини/корінного народу — окремо
+            {{ norma_predmeta.movy_menshyn_porih_miska }} (місто) / {{ norma_predmeta.movy_menshyn_porih_silska }} (село)
+          {% endif %}
+          . Поточний тип місцевості школи: <strong>{{ school_miscevist }}</strong>
+          (змінити — в "Налаштуваннях школи", мову викладання в класі — пункт "Додатково").
+        </p>
+        <p class="hint-note">
+          Налаштування підгруп відбувається окремо для кожного класу — в "Навчальному плані",
+          на записі цього предмета в конкретному класі (там система звірить фактичну кількість
+          учнів чи розподіл за статтю з нормативом і підкаже, чи потрібно призначити вчителя
+          підгрупи 2).
+        </p>
+      {% else %}
+        <p class="hint-plain">
+          Для цього предмета немає окремого нормативу поділу на підгрупи (нормований код ще
+          не задано на сторінці "Додатково", або норма на нього не поширюється) —
+          автоматична перевірка в Навчальному плані не спрацює.
+        </p>
+      {% endif %}
+    {% elif pravylo == "nikoly" and norma_predmeta %}
+      <p class="hint-warning">
+        За нормативом (<a href="/normatyvni-dokumenty#nakaz-128" target="_blank">наказ МОН №128,
+        у редакції №808</a>) цей предмет підлягає обов'язковому поділу класу на підгрупи, але
+        автоматичну перевірку свідомо вимкнено ("Ніколи"). Це визнаний відступ від норми —
+        типовий випадок, коли школа не має додаткового вчителя чи кабінету для поділу.
+        Переконайтесь, що це усвідомлене рішення закладу, а не технічний недогляд.
+      </p>
+    {% endif %}
+
+    {% if predmet and predmet.get("id") %}
+      <p class="hint-plain">
+        Складність, освітня галузь, обмеження за днями/уроками та інші рідше змінювані
+        параметри — на сторінці <a href="/predmety/{{ predmet.id }}/dodatkovo">"Додатково"</a>
+        (доступна після збереження).
+      </p>
+    {% endif %}
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/predmety">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

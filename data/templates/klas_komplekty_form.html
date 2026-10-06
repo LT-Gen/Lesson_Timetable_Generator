@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ "Редагувати клас-комплект" if komplekt else "Новий клас-комплект" }}</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <label>Назва</label>
+    <input type="text" name="nazva" required placeholder="напр. Комплект 1-3 класів"
+           value="{{ komplekt.nazva if komplekt else '' }}">
+
+    <label class="mt-16">Класний керівник (веде класні предмети всім класам групи)</label>
+    <select name="klasnyi_kerivnyk_id">
+      <option value="">— не призначено —</option>
+      {% for v in vsi_vchyteli %}
+        <option value="{{ v.id }}" {{ "selected" if komplekt and komplekt.klasnyi_kerivnyk_id == v.id else "" }}>{{ v.pib }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint-note">
+      При збереженні вчитель автоматично призначається на класні предмети (Українська
+      мова, Математика, Я досліджую світ, Мистецтво, Дизайн і технології) для **всіх**
+      класів групи в навчальному плані — це потрібно, щоб генератор міг ставити ці уроки
+      одночасно всім класам комплекту (синхронізація працює лише коли вчитель однаковий).
+      Якщо в когось із класів цих предметів ще немає в навчальному плані — додайте їх
+      спершу на сторінці "Навчальний план".
+    </p>
+
+    <label class="mt-16">Класи в групі (від 2 до 4, лише паралелі 1-4)</label>
+    <p class="hint-plain">
+      Показані лише класи, які ще не належать іншому комплекту (плюс уже обрані в цьому,
+      якщо редагуєте наявний).
+    </p>
+    {% if not dostupni_klasy %}
+      <p class="hint-plain">Немає доступних класів 1-4 паралелі поза іншими комплектами.</p>
+    {% endif %}
+    {% for k in dostupni_klasy %}
+      <label class="checkbox-label">
+        <input type="checkbox" name="chleny_ids" value="{{ k.id }}"
+               {{ "checked" if k.id in obrani_ids else "" }}>
+        {{ klas_nazva(k.paralel, k.litera) }}
+      </label>
+    {% endfor %}
+
+    <div class="mt-16">
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/klas-komplekty">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

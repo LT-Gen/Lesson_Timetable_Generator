@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Залишки годин</h1>
+  <p class="hint-info">
+    Прогноз на основі навчального плану й дат семестрів, СКОРИГОВАНИЙ реальними даними з
+    журналу "Заміни". Кожен рядок — власний тариф вчителя за предметом. "Скасовано по
+    заміні" — скільки його уроків не відбулось як його предмет (байдуже, зовсім ніхто не
+    прийшов чи прийшов хтось з іншим предметом) — це його борг, він нікуди не зникає,
+    його треба вичитати пізніше. "Втрачено (свята/карантин)" — уроки, що припали на дні з
+    <a href="/nenavchalni-dni">календаря ненавчальних днів</a>: вони теж не прочитані,
+    це такий самий борг. "Відпрацьовано" — навпаки: суботи (чи інші вихідні), які
+    школа відпрацювала за розкладом пропущеного дня, — вони цей борг закривають.
+    "Проведено по заміні" — скільки ДОДАТКОВИХ годин свого
+    предмета він реально провів, підмінюючи чужий урок — це плюс до його особистого заліку.
+  </p>
+
+  {% if not semestry_zapovneni %}
+    <p class="alert alert-error">
+      Дати семестрів не заповнені в "Налаштуваннях школи" — розрахунок буде неточним (0 тижнів пройшло).
+    </p>
+  {% endif %}
+
+  <form method="post" class="inline-select-group">
+    <label>Станом на дату:</label>
+    <input type="date" name="na_datu" value="{{ na_datu }}">
+
+    <label>Вчитель:</label>
+    <select name="vchytel_id">
+      <option value="">— всі —</option>
+      {% for v in all_vchyteli %}
+        <option value="{{ v.id }}" {{ "selected" if filter_vchytel_id == v.id|string else "" }}>{{ v.pib }}</option>
+      {% endfor %}
+    </select>
+
+    <label>Предмет:</label>
+    <select name="predmet_id">
+      <option value="">— всі —</option>
+      {% for p in all_predmety %}
+        <option value="{{ p.id }}" {{ "selected" if filter_predmet_id == p.id|string else "" }}>{{ p.nazva }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="btn btn-small">Показати</button>
+  </form>
+
+  <p class="hint-plain mt-16">
+    Минуло навчальних тижнів: <strong>{{ tyzhniv_projshlo }}</strong> з {{ tyzhniv_vsogo }}.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Вчитель</th>
+        <th>Предмет</th>
+        <th>Всього годин</th>
+        <th>На тиждень</th>
+        <th>Скасовано по заміні</th>
+        <th>Втрачено (свята/карантин)</th>
+        <th>Відпрацьовано</th>
+        <th>Проведено по заміні</th>
+        <th>Проведено фактично</th>
+        <th>Залишок</th>
+      </tr>
+      {% for z in zapysy %}
+      <tr>
+        <td>{{ z.vchytel_pib }}</td>
+        <td>{{ z.predmet_nazva }}</td>
+        <td>{{ z.zaplanovano_rik }}</td>
+        <td>{{ z.godyn_tyzhden }}</td>
+        <td>{{ z.skasovano_po_zamini or "—" }}</td>
+        <td>{{ z.vtracheno_na_svyata or "—" }}</td>
+        <td>{{ z.vidpratsovano or "—" }}</td>
+        <td>{{ z.provedeno_po_zamini or "—" }}</td>
+        <td>{{ z.proideno_proekciya }}</td>
+        <td><strong>{{ z.zalyshok }}</strong></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10" class="empty-row">Навчальний план порожній.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endblock %}

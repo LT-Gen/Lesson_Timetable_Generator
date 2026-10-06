@@ -1,0 +1,104 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Заміни</h1>
+  <p class="hint-info">
+    Автопідбір замін на конкретний день. Оберіть дату й усіх відсутніх вчителів одразу
+    (навіть якщо їх кілька - епідемія, лікарняні тощо) - система сама знайде для кожного
+    уроку 2-3 вільних вчителів того самого фаху, а де нікого немає - позначить це чесно.
+  </p>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="get" action="/zaminy" class="inline-select-group">
+    <label>Дата:</label>
+    <input type="date" name="data" value="{{ data_str }}" onchange="this.form.submit()">
+    <noscript><button type="submit" class="btn btn-small">Показати вчителів</button></noscript>
+  </form>
+
+  {% if variant_na_datu %}
+    <p class="hint-plain mt-16">
+      На цю дату діє збережений варіант розкладу «{{ variant_na_datu.nazva }}»
+      (діє з {{ variant_na_datu.diye_z }}) — уроки й кандидати беруться з нього.
+    </p>
+  {% endif %}
+  {% if data_str and den_label == "вихідний" %}
+    <p class="alert alert-error mt-16">Обрана дата — вихідний день, уроків немає.</p>
+  {% elif data_str and not all_vchyteli %}
+    <p class="alert alert-error mt-16">У {{ den_label }} немає жодного уроку за тижневим шаблоном.</p>
+  {% elif data_str %}
+    <form method="post" action="/zaminy/pidibraty" class="mt-16">
+      <input type="hidden" name="data" value="{{ data_str }}">
+
+      <label>Відсутні вчителі {{ den_label }} (можна обрати кілька — показані лише ті, хто цього дня взагалі викладає)</label>
+      {% for v in all_vchyteli %}
+        <label class="checkbox-label">
+          <input type="checkbox" name="vidsutni_ids" value="{{ v.id }}">
+          {{ v.pib }}
+        </label>
+      {% endfor %}
+
+      <button type="submit" class="mt-16">Підібрати заміни на цей день</button>
+
+      <div class="mt-24">
+        <label>Або на період — відсутність кілька днів (лікарняний, відрядження)</label>
+        <div class="inline-select-group">
+          <label>по (включно):</label>
+          <input type="date" name="data_do" value="{{ data_do_str or '' }}">
+          <button type="submit" class="btn btn-small btn-secondary" formaction="/zaminy/pidibraty-period">Підібрати на період</button>
+        </div>
+        <p class="hint-plain">
+          На кожен день періоду береться найкращий вільний кандидат (де нікого — скасування);
+          перед записом покажеться перелік усіх рішень.
+        </p>
+      </div>
+    </form>
+  {% else %}
+    <p class="hint-plain mt-16">Спершу оберіть дату — список вчителів з'явиться нижче.</p>
+  {% endif %}
+
+  <a class="btn btn-secondary" href="/zaminy/druk">Список замін на друк</a>
+  <h2 class="section-title">Останні записи</h2>
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Дата</th>
+        <th>Клас</th>
+        <th>Урок</th>
+        <th>Предмет</th>
+        <th>Плановий вчитель</th>
+        <th>Статус</th>
+        <th>Причина</th>
+        <th></th>
+      </tr>
+      {% for u in ostanni %}
+      <tr>
+        <td>{{ u.data }}</td>
+        <td>{{ klas_nazva(u.paralel, u.litera) }}</td>
+        <td>{{ u.urok_nomer }}</td>
+        <td>{{ u.predmet_nazva }}</td>
+        <td>{{ u.planovanyi_pib or "—" }}</td>
+        <td>
+          {% if u.status == "skasovano" %}Скасовано
+          {% elif u.status == "zamina" %}Заміна ({{ u.faktychnyi_pib or "—" }})
+          {% else %}Проведено
+          {% endif %}
+        </td>
+        <td>{{ u.prychyna or "—" }}</td>
+        <td>
+          <form method="post" action="/zaminy/skasuvaty"
+                onsubmit="return confirm('Прибрати цей запис? Урок повернеться до звичайного розкладу.');">
+            <input type="hidden" name="id" value="{{ u.id }}">
+            <button type="submit" class="btn btn-danger btn-small">Прибрати</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="empty-row">Записів ще немає</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endblock %}

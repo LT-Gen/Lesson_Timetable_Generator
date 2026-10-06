@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Склад групи {{ grupa.nazva }}</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+  {% if poperedzhennya %}
+    <div class="hint-warning">{{ poperedzhennya }}</div>
+  {% endif %}
+
+  <p class="hint-plain">
+    Скільки учнів кожного реального класу {{ grupa.paralel }} паралелі входить у цю
+    групу. Порожнє поле = клас не бере участі. Один клас може входити в кілька груп
+    одночасно — колонка "Вільних (без груп)" показує, скільки ще НЕ розподілено в
+    інші групи (саме стільки максимум можна вписати тут).
+  </p>
+
+  {% if not klasy_paraleli %}
+    <p class="hint-warning">Немає жодного класу {{ grupa.paralel }} паралелі — спершу додайте клас у розділі "Класи".</p>
+  {% else %}
+    <form method="post">
+      <div class="table-wrap"><table>
+        <tr>
+          <th>Клас</th>
+          <th class="col-narrow">Учнів у класі</th>
+          <th class="col-narrow">Вільних (без груп)</th>
+          <th class="col-narrow">Учнів у цій групі</th>
+        </tr>
+        {% for k in klasy_paraleli %}
+        {% set vilnykh = vilni.get(k.id, k.kilkist_uchniv) %}
+        <tr>
+          <td>{{ k.paralel }}{{ "-" + k.litera if k.litera else "" }}</td>
+          <td>{{ k.kilkist_uchniv }}</td>
+          <td class="{{ 'nazva-unused' if vilnykh <= 0 else '' }}">{{ vilnykh }}</td>
+          <td>
+            <input type="number" name="kilkist_{{ k.id }}" min="1" max="{{ vilnykh }}"
+                   value="{{ sklad.get(k.id, '') }}">
+          </td>
+        </tr>
+        {% endfor %}
+      </table></div>
+
+      <div class="mt-24">
+        <button type="submit">Зберегти</button>
+        <a class="btn btn-secondary" href="/grupy">Скасувати</a>
+      </div>
+    </form>
+  {% endif %}
+{% endblock %}

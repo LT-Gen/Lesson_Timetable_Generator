@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Вчителі</h1>
+  <a class="btn" href="/vchyteli/new">+ Додати вчителя</a>
+  <a class="btn btn-secondary" href="/vchyteli/bulk">Масове додавання</a>
+  <p class="hint-plain"><span class="nazva-unused">Червоним</span> — вчитель не веде ні уроків, ні позаурочних занять і не є класним керівником.</p>
+  <div class="table-wrap"><table>
+    <tr>
+      <th class="col-narrow">№</th>
+      <th>ПІБ</th>
+      <th>Предмети</th>
+      <th>Закріплений кабінет</th>
+      <th>Макс. уроків/день</th>
+      {% for kod, _, korotko in riven_kolonky %}
+        <th class="col-narrow" title="Рівень викладання: {{ korotko }}">{{ korotko }}</th>
+      {% endfor %}
+      <th class="col-actions"></th>
+    </tr>
+    {% for v in vchyteli %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>
+        {% if v.u_plani %}
+          {{ v.pib }}
+        {% else %}
+          <span class="nazva-unused" title="Не веде ні уроків, ні позаурочних занять і не є класним керівником">{{ v.pib }}</span>
+        {% endif %}
+      </td>
+      <td class="wrap-cell">{{ v.predmety_names or "—" }}</td>
+      <td>{{ v.kabinet_nazva or "—" }}</td>
+      <td>{{ v.maksymum_urokiv_den or "—" }}</td>
+      {% for kod, _, _ in riven_kolonky %}
+        <td class="col-narrow">{{ "✓" if v[kod] else "—" }}</td>
+      {% endfor %}
+      <td>
+        <div class="actions-cell">
+          <a class="btn btn-small" href="/vchyteli/{{ v.id }}/edit">Редагувати</a>
+          <a class="btn btn-small btn-purple" href="/vchyteli/{{ v.id }}/dostupnist">Доступність</a>
+          <a class="btn btn-small btn-teal" href="/vchyteli/{{ v.id }}/matrytsya">Навантаження</a>
+          <form method="post" action="/vchyteli/{{ v.id }}/delete"
+                onsubmit="return confirm('Видалити вчителя {{ v.pib }}?{% if v.naslidky %} Разом з ним: {{ v.naslidky }}. Розклад доведеться перегенерувати.{% endif %}');">
+            <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="{{ 6 + riven_kolonky|length }}" class="empty-row">Вчителів ще немає</td></tr>
+    {% endfor %}
+  </table></div>
+
+  <p class="hint-plain mt-24">
+    Предмети підтягуються з розділу "Тарифікація" — додайте там записи для кожного вчителя.
+  </p>
+{% endblock %}

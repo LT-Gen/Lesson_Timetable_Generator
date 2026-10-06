@@ -1,0 +1,182 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Навчальний план</h1>
+  <a class="btn" href="/navchalnyj-plan/new">+ Додати запис</a>
+  <a class="btn btn-secondary" href="/navchalnyj-plan/kopiyuvaty">Скопіювати план з іншого класу</a>
+  <a class="btn btn-secondary" href="/navchalnyj-plan/mizhpredmetni">Міжпредметні групи поділу</a>
+  <p class="hint-plain">
+    Різні предмети одночасно для підгруп того самого класу (напр. половина класу на
+    інформатиці, половина на іноземній мові, потім чергування) — усі записи групи
+    стоять в одному й тому самому слоті розкладу. Той самий механізм використовуйте,
+    коли в класі кілька РІЗНИХ іноземних мов одночасно (наказ МОН №128, у редакції
+    №808, п.4) — не плутайте з полем "Вчитель підгрупи 2" в записі окремого предмета,
+    те призначене для поділу ОДНОГО й того самого предмета між двома вчителями.
+  </p>
+
+  {% if ye_parnist %}
+    <p class="alert alert-warning">
+      У плані є предмети з парністю тижня (парний/непарний) — вони йдуть раз на два
+      тижні. Перевірте, який тиждень зараз перший, у
+      <a href="/nalashtuvannya">Налаштуваннях школи</a>
+      (зараз: перший тиждень навчального року —
+      <strong>{{ "непарний" if pershyi_tyzhden_neparnyi else "парний" }}</strong>).
+    </p>
+  {% endif %}
+
+  {% if navantazhennya_grupy %}
+    <h2 class="section-title">Навантаження по класах</h2>
+    <p class="hint-info">
+      "Граничне" і "Фактичне" — офіційні норми МОН, вносяться вручну з навчального
+      плану (сіре число — типовий орієнтир, ще не задано вручну). "Розподілено" —
+      реально розписано в навчальному плані нижче, звіряється з обома нормами;
+      <span class="nazva-unused">червоним</span> — перевищення норми.
+      Граничне — без фізкультури. Фактичне — з фізкультурою (те, що МОН оплачує).
+      Якщо в класі є дробові (парні/непарні) предмети, "Розподілено" показує ДВІ
+      цифри — парний тиждень і в дужках непарний, — кожна звіряється з нормою
+      окремо (тижні можуть відрізнятись, обидва не повинні перевищувати норму).
+    </p>
+    {# Три стовпці за освітніми рівнями (1-4 / 5-9 / 10-12): суцільний список на
+       30-40 класів був незручно довгий. Порожні рівні не показуються. #}
+    <div class="navantazhennya-kolonky">
+      {% for grupa in navantazhennya_grupy %}
+      <div>
+        <h3 class="navantazhennya-pidpys">{{ grupa.pidpys }}</h3>
+        <div class="table-wrap">
+          <table class="navantazhennya-tablytsya">
+            <tr>
+              <th>Клас</th>
+              <th>Граничне</th>
+              <th>Розпод.</th>
+              <th>Фактичне</th>
+              <th>Розпод.</th>
+            </tr>
+            {% for n in grupa.riadky %}
+            <tr>
+              <td>{{ n.nazva }}</td>
+              <td>
+                <form method="post" action="/klasy/{{ n.klas_id }}/norma" class="inline-form">
+                  <input type="hidden" name="faktychne_navantazhennya" value="{{ n.faktychna_norma }}">
+                  <input type="number" name="hranychne_navantazhennya" min="1" max="50"
+                         value="{{ n.hranychna_norma }}" class="norma-input"
+                         style="{{ 'color: #999;' if not n.hranychna_vruchnu else '' }}">
+                  <button type="submit" class="btn btn-small">✓</button>
+                </form>
+              </td>
+              <td>
+                {% if n.maye_parnist %}
+                  <span class="{{ 'nazva-unused' if n.perevyshcheno_hranychne_parnyi else '' }}">{{ n.parnyi_bez_fizkultury }}</span>
+                  (<span class="{{ 'nazva-unused' if n.perevyshcheno_hranychne_neparnyi else '' }}">{{ n.neparnyi_bez_fizkultury }}</span>)
+                {% else %}
+                  <span class="{{ 'nazva-unused' if n.perevyshcheno_hranychne else '' }}">{{ n.rozpodileno_bez_fizkultury }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <form method="post" action="/klasy/{{ n.klas_id }}/norma" class="inline-form">
+                  <input type="hidden" name="hranychne_navantazhennya" value="{{ n.hranychna_norma }}">
+                  <input type="number" name="faktychne_navantazhennya" min="1" max="50"
+                         value="{{ n.faktychna_norma }}" class="norma-input"
+                         style="{{ 'color: #999;' if not n.faktychna_vruchnu else '' }}">
+                  <button type="submit" class="btn btn-small">✓</button>
+                </form>
+              </td>
+              <td>
+                {% if n.maye_parnist %}
+                  <span class="{{ 'nazva-unused' if n.perevyshcheno_faktychne_parnyi else '' }}">{{ n.parnyi_z_fizkulturoyu }}</span>
+                  (<span class="{{ 'nazva-unused' if n.perevyshcheno_faktychne_neparnyi else '' }}">{{ n.neparnyi_z_fizkulturoyu }}</span>)
+                {% else %}
+                  <span class="{{ 'nazva-unused' if n.perevyshcheno_faktychne else '' }}">{{ n.rozpodileno_z_fizkulturoyu }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <h2 class="section-title mt-24">Усі записи</h2>
+  {% if not zapysy_po_klasu %}
+    <p class="empty-row">Навчальний план ще порожній</p>
+  {% endif %}
+
+  <div class="tabs-row" id="np-tabs-row">
+    {% for grupa in zapysy_po_klasu %}
+      <button type="button" class="btn btn-small {{ 'btn-teal' if loop.first else 'btn-secondary' }} np-tab-btn"
+              data-tab="np-tab-{{ loop.index }}">
+        {{ grupa.nazva }} <span class="tab-count">({{ grupa.zapysy|length }})</span>
+      </button>
+    {% endfor %}
+  </div>
+
+  {% for grupa in zapysy_po_klasu %}
+  <div class="tab-panel np-tab-panel{{ '' if loop.first else ' hidden' }}" id="np-tab-{{ loop.index }}">
+      <div class="table-wrap"><table>
+        <tr>
+          <th>Предмет</th>
+          <th>Вчитель</th>
+          <th>Підгрупа 2</th>
+          <th>Щотижня</th>
+          <th>Парний тижд.</th>
+          <th>Непарний тижд.</th>
+          <th>Середньо/тижд</th>
+          <th>Здвоєних пар</th>
+          <th>Макс/день</th>
+          <th>Закр. день</th>
+          <th class="col-actions"></th>
+        </tr>
+        {% for z in grupa.zapysy %}
+        <tr>
+          <td>{{ z.predmet_nazva }}</td>
+          <td>{{ z.vchytel_pib }}</td>
+          <td>{{ z.pidgrupa_2_vchytel_pib or "—" }}</td>
+          <td>{{ z.godyn_oboydva or "—" }}</td>
+          <td>{{ z.godyn_parnyi or "—" }}</td>
+          <td>{{ z.godyn_neparnyi or "—" }}</td>
+          <td>{{ z.serednye_tyzhden }}{% if z.maye_parnist %}<span class="form-hint"> (дробове)</span>{% endif %}</td>
+          <td>{{ z.zdvoyeni_pary }}</td>
+          <td>{{ z.maks_urokiv_den }}</td>
+          {% set efektyvnyi_den = z.fiksovanyi_den or z.predmet_fiksovanyi_den %}
+          <td>
+            {% if efektyvnyi_den %}
+              {{ ["Пн", "Вт", "Ср", "Чт", "Пт"][efektyvnyi_den - 1] }}
+              {% if not z.fiksovanyi_den %}<span class="form-hint">(з предмета)</span>{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <div class="actions-cell">
+              <a class="btn btn-small" href="/navchalnyj-plan/klas/{{ z.klas_id }}/predmet/{{ z.predmet_id }}/edit">Редагувати</a>
+              <form method="post" action="/navchalnyj-plan/klas/{{ z.klas_id }}/predmet/{{ z.predmet_id }}/delete"
+                    onsubmit="return confirm('Видалити запис навчального плану (усі парні/непарні варіанти) для цього предмета?');">
+                <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </table></div>
+  </div>
+  {% endfor %}
+
+  <script>
+    (function () {
+      const buttons = document.querySelectorAll(".np-tab-btn");
+      buttons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          buttons.forEach(function (b) {
+            b.classList.remove("btn-teal");
+            b.classList.add("btn-secondary");
+          });
+          btn.classList.remove("btn-secondary");
+          btn.classList.add("btn-teal");
+
+          document.querySelectorAll(".np-tab-panel").forEach(function (panel) {
+            panel.classList.add("hidden");
+          });
+          document.getElementById(btn.dataset.tab).classList.remove("hidden");
+        });
+      });
+    })();
+  </script>
+{% endblock %}

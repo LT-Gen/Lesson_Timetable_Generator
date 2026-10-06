@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Нова міжпредметна група</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="get" class="inline-select-group">
+    <label>Клас:</label>
+    <select name="klas_id" onchange="this.form.submit()">
+      <option value="">— оберіть клас —</option>
+      {% for k in all_klasy %}
+        <option value="{{ k.id }}" {{ "selected" if obranyi_klas == k.id else "" }}>{{ klas_nazva(k.paralel, k.litera) }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  {% if obranyi_klas %}
+    <form method="post" class="mt-16">
+      <input type="hidden" name="klas_id" value="{{ obranyi_klas }}">
+
+      <label>Назва групи</label>
+      <input type="text" name="nazva" placeholder="напр. Інформатика / Іноземна мова" required>
+
+      <label>Записи навчального плану цього класу для об'єднання (оберіть 2 або більше)</label>
+      {% if zapysy_klasu %}
+        {% for z in zapysy_klasu %}
+          <label class="checkbox-label">
+            <input type="checkbox" name="zapysy_ids" value="{{ z.id }}">
+            {{ z.predmet_nazva }} — {{ z.vchytel_pib }} ({{ z.godyn_tyzhden }} год/тижд)
+          </label>
+        {% endfor %}
+        <p class="hint-note">
+          Показані лише записи, які ще НЕ входять в іншу міжпредметну групу.
+          Рекомендовано обирати записи з однаковою кількістю годин на тиждень —
+          так підгрупи чергуються рівномірно.
+        </p>
+        <div>
+          <button type="submit">Створити групу</button>
+          <a class="btn btn-secondary" href="/navchalnyj-plan/mizhpredmetni">Скасувати</a>
+        </div>
+      {% else %}
+        <p class="alert alert-error">
+          У цього класу немає вільних записів навчального плану (усі вже в групах,
+          або записів ще немає взагалі).
+        </p>
+      {% endif %}
+    </form>
+  {% endif %}
+{% endblock %}

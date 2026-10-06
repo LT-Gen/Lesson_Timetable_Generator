@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Кабінети</h1>
+  <a class="btn" href="/kabinety/new">+ Додати кабінет</a>
+  <a class="btn btn-secondary" href="/kabinety/bulk">Масове додавання</a>
+  <p class="hint-info">
+    Приміщення, у яких генератор розставляє уроки. <strong>Тип прив'язки</strong> визначає,
+    хто може займати кабінет: <em>універсальний</em> — будь-який предмет; <em>за предметом</em>,
+    <em>за вчителем</em> або <em>комбінація</em> — лише вказані. Домашній кабінет класу
+    задається в картці класу, спецкабінет предмета — в картці предмета.
+  </p>
+  <div class="table-wrap"><table>
+    <tr>
+      <th class="col-narrow">№</th>
+      <th>Назва</th>
+      <th>Місткість</th>
+      <th>Корпус</th>
+      <th>Тип прив'язки</th>
+      <th>Дозволені предмети</th>
+      <th>Дозволені вчителі</th>
+      {% for kod, _, korotko in riven_kolonky %}
+        <th class="col-narrow" title="Рівень використання: {{ korotko }}">{{ korotko }}</th>
+      {% endfor %}
+      <th class="col-actions"></th>
+    </tr>
+    {% for k in kabinety %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>{{ k.nazva }}</td>
+      <td>{{ k.mistkist }}</td>
+      <td>{{ k.korpus or "—" }}</td>
+      <td>
+        {% if k.typ_pryvyazky == "predmet" %}За предметом
+        {% elif k.typ_pryvyazky == "vchytel" %}За вчителем
+        {% elif k.typ_pryvyazky == "kombinatsiya" %}Комбінація
+        {% else %}Універсальний
+        {% endif %}
+      </td>
+      <td class="wrap-cell">{{ k.predmety_names or "—" }}</td>
+      <td class="wrap-cell">{{ k.vchyteli_names or "—" }}</td>
+      {% for kod, _, _ in riven_kolonky %}
+        <td class="col-narrow">{{ "✓" if k[kod] else "—" }}</td>
+      {% endfor %}
+      <td>
+        <div class="actions-cell">
+          <a class="btn btn-small" href="/kabinety/{{ k.id }}/edit">Редагувати</a>
+          <a class="btn btn-small btn-secondary" href="/kabinety/{{ k.id }}/dodatkovo">Додатково</a>
+          <a class="btn btn-small btn-purple" href="/kabinety/{{ k.id }}/dostupnist">Доступність</a>
+          <form method="post" action="/kabinety/{{ k.id }}/delete"
+                onsubmit="return confirm('Видалити кабінет {{ k.nazva }}?{% if k.naslidky %} Наслідки: {{ k.naslidky }}.{% endif %}');">
+            <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="{{ 8 + riven_kolonky|length }}" class="empty-row">Кабінетів ще немає</td></tr>
+    {% endfor %}
+  </table></div>
+{% endblock %}

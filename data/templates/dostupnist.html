@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Доступність: {{ entity_name }}</h1>
+  <p class="hint-plain">
+    {% if allow_nebazhanyi %}
+      Клікніть по клітинці, щоб перемкнути стан: Доступний → Недоступний → Небажаний → Доступний.
+    {% else %}
+      Клікніть по клітинці, щоб перемкнути стан: Доступний → Недоступний → Доступний.
+    {% endif %}
+    Клікніть по назві дня чи номеру уроку, щоб перемкнути весь рядок/стовпець одразу;
+    клік по кутовій клітинці (▦) перемикає всю сітку.
+  </p>
+
+  <div class="availability-legend">
+    <div><span class="legend-swatch dostupnyi"></span> Доступний</div>
+    <div><span class="legend-swatch nedostupnyi"></span> Недоступний</div>
+    {% if allow_nebazhanyi %}
+    <div><span class="legend-swatch nebazhanyi"></span> Небажаний</div>
+    {% endif %}
+  </div>
+
+  <div class="dostupnist-wrap"><table id="grid" class="mt-16 no-select"></table></div>
+
+  <form method="post" id="save-form" class="mt-24">
+    <input type="hidden" name="data" id="data-input">
+    <button type="submit">Зберегти</button>
+    <a class="btn btn-secondary" href="{{ back_url }}">Скасувати</a>
+  </form>
+
+  <script>
+    initAvailabilityGrid({
+      existing: {{ existing_data_json|safe }},
+      allowNebazhanyi: {{ "true" if allow_nebazhanyi else "false" }},
+      gridId: "grid",
+      dataInputId: "data-input",
+      formId: "save-form",
+    });
+  </script>
+{% endblock %}

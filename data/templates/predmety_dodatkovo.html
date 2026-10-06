@@ -1,0 +1,115 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Додатково: {{ predmet.nazva }}</h1>
+  <a class="btn btn-secondary" href="/predmety">← До списку предметів</a>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" class="mt-16">
+    <label>Заборонені номери уроків (через кому, напр. 1,7,8)</label>
+    <input type="text" name="zaboroneni_uroky"
+           value="{{ predmet.zaboroneni_uroky if predmet.zaboroneni_uroky else '' }}">
+
+    <label>Мінімальний проміжок між уроками (днів)</label>
+    <input type="number" name="min_promizhok_dni" min="0"
+           value="{{ predmet.min_promizhok_dni if predmet.min_promizhok_dni else '' }}">
+
+    <label>Фіксований день тижня за замовчуванням (1-5, пн-пт)</label>
+    <input type="number" name="fiksovanyi_den" min="1" max="5"
+           value="{{ predmet.fiksovanyi_den if predmet.fiksovanyi_den else '' }}">
+
+    <label>Фіксований номер уроку за замовчуванням</label>
+    <input type="number" name="fiksovanyi_urok" min="1" max="10"
+           value="{{ predmet.fiksovanyi_urok if predmet.fiksovanyi_urok else '' }}">
+    <p class="hint-note">Не використовується, якщо увімкнено "Завжди останнім уроком дня" нижче.</p>
+
+    <label class="checkbox-label">
+      <input type="checkbox" name="ostannim_urokom" {{ "checked" if predmet.ostannim_urokom else "" }}>
+      Завжди останнім уроком дня
+    </label>
+    <p class="hint-info">
+      У різних класів різна кількість уроків на день, тож "останній" — це різний
+      конкретний номер для кожного класу. Якщо увімкнено, система сама обчислює
+      правильний урок для кожного класу окремо (замість єдиного фіксованого номера,
+      який підійшов би не всім).
+    </p>
+
+    <label>Складність предмета (гігієнічна шкала)</label>
+    <select name="vazhkist">
+      <option value="vazhkyi" {{ "selected" if predmet.vazhkist == "vazhkyi" else "" }}>
+        Важкий (математика, фізика, хімія, іноземна мова, українська мова)
+      </option>
+      <option value="serednii" {{ "selected" if not predmet.vazhkist or predmet.vazhkist == "serednii" else "" }}>
+        Середній (історія, географія, біологія, література)
+      </option>
+      <option value="legkyi" {{ "selected" if predmet.vazhkist == "legkyi" else "" }}>
+        Легкий (мистецтво, музика, трудове навчання, фізкультура)
+      </option>
+    </select>
+    <p class="hint-info">
+      Впливає на генерацію розкладу: важкі предмети система намагається ставити
+      на 2-3 урок і на вівторок/середу (пік працездатності), легкі — ближче до
+      кінця дня й до п'ятниці, і уникає двох важких предметів поспіль.
+    </p>
+
+    <label>Освітня галузь</label>
+    <select name="osvitnya_galuz">
+      <option value="">— не вказано —</option>
+      {% for g in OSVITNI_GALUZI %}
+        <option value="{{ g }}" {{ "selected" if predmet.osvitnya_galuz == g else "" }}>{{ g }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint-plain">За Державним стандартом базової середньої освіти. Для фільтрації й звітності.</p>
+
+    <label>Нормований код (тип за типовим переліком МОН)</label>
+    <select name="normovanyi_kod">
+      <option value="">— не визначено (кастомний предмет) —</option>
+      {% for nazva, kod in NORMOVANI_KODY_PREDMETIV.items() %}
+        <option value="{{ kod }}" {{ "selected" if predmet.normovanyi_kod == kod else "" }}>{{ nazva }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint-info">
+      Стабільний внутрішній код — визначає, до якого типового предмета МОН належить
+      цей запис (санітарні норми здвоєних уроків тощо), незалежно від того, як ви
+      назвете предмет тут. Оберіть найближчий відповідник зі списку, якщо предмет
+      нетиповий (кастомна назва) — можна лишити "не визначено".
+    </p>
+
+    <label class="checkbox-label">
+      <input type="checkbox" name="vrahovuyetsya_u_hranychnomu"
+             {{ "checked" if predmet.vrahovuyetsya_u_hranychnomu else "" }}>
+      Враховується у граничному допустимому навантаженні учня
+    </label>
+    <p class="hint-note">
+      Вимкніть для фізичної культури — вона входить у фактичний розклад (і фінансується),
+      але офіційно НЕ враховується при визначенні гранично допустимого навантаження учня
+      (Санітарний регламент).
+    </p>
+
+    <label class="checkbox-label">
+      <input type="checkbox" name="spets_kabinet_lyshe_pidgrupa1"
+             {{ "checked" if predmet.spets_kabinet_lyshe_pidgrupa1 else "" }}>
+      Спецкабінет потрібен лише 1-й підгрупі поділу
+    </label>
+    <p class="hint-info">
+      Для предметів, де спеціальне приміщення — радше зручність, ніж обладнання
+      (іноземна мова). Якщо клас поділено на підгрупи: 1-ша йде у спецкабінет
+      (напр. кабінет іноземних мов), 2-га — у домашній клас або будь-який вільний
+      кабінет. Нерозділений урок теж іде в домашній клас. Так школі достатньо
+      <strong>одного</strong> такого кабінету. Для інформатики, фізкультури,
+      майстерні — НЕ вмикати: там обладнання потрібне обом підгрупам.
+    </p>
+
+    <label>Категорія предмета (довільна нотатка)</label>
+    <input type="text" name="kategoria" value="{{ predmet.kategoria if predmet.kategoria else '' }}">
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/predmety">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

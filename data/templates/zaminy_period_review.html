@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Заміни на період {{ data_str }} — {{ data_do_str }}</h1>
+  <p class="hint-info">
+    Навчальних днів у періоді: <strong>{{ dniv }}</strong> (вихідні, канікули, святкові й
+    карантинні дні пропущено; робоча субота — за розкладом свого дня). На кожен урок
+    відсутніх узято найкращого кандидата — спершу той самий предмет, найменше
+    навантаження того дня; де нікого вільного — скасування ({{ skasovano }}). Щоб
+    підібрати інакше на конкретний день — після збереження зробіть одноденний підбір
+    на цю дату: він перезапише запис.
+  </p>
+  <a class="btn btn-secondary" href="/zaminy">← Інший підбір</a>
+
+  {% if riadky %}
+  <form method="post" action="/zaminy/zberegty-period" class="mt-16">
+    <div class="table-wrap table-wrap-scroll">
+      <table>
+        <tr><th>Дата</th><th>Урок</th><th>Клас</th><th>Предмет / заняття</th><th>Відсутній</th><th>Рішення</th></tr>
+        {% for r in riadky %}
+        <tr class="{{ 'nazva-unused' if r.rishennya == 'skasovano' else '' }}">
+          <td>{{ r.data }}</td>
+          <td>{{ r.urok }}</td>
+          <td>{{ r.klas_nazva }}</td>
+          <td>{{ r.predmet_nazva }}</td>
+          <td>{{ r.vidsutnii_pib }}</td>
+          <td>{{ r.opys }}</td>
+        </tr>
+        <input type="hidden" name="zapys"
+               value="{{ r.data }}|{{ r.klas_id }}|{{ r.urok }}|{{ r.predmet_id or '' }}|{{ r.pozaurochne_zanyattya_id or '' }}|{{ r.vidsutnii_id }}|{{ r.rishennya }}">
+        {% endfor %}
+      </table>
+    </div>
+    <button type="submit" class="mt-16">Зберегти всі ({{ riadky|length }})</button>
+  </form>
+  {% else %}
+  <p class="alert alert-error mt-16">У обраних вчителів немає жодного уроку в навчальні дні цього періоду.</p>
+  {% endif %}
+{% endblock %}
