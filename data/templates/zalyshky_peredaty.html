@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Передати години іншому вчителеві</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <p class="hint-info">
+    Учитель змінився посеред року. <strong>{{ riadok.vchytel_pib }}</strong> закривається
+    з предмета «{{ riadok.predmet_nazva }}»: його річні години стануть рівними прочитаному
+    на дату передачі, рядок стане зеленим. Залишок переходить новому вчителеві, і йому
+    рахується лише прочитане з цієї дати.
+  </p>
+
+  <div class="table-wrap"><table>
+    <tr><th>Станом на {{ data_ua(data) }}</th><th>Годин</th></tr>
+    <tr><td>Затверджено на рік</td><td>{{ "%g"|format(riadok.zaplanovano) }}</td></tr>
+    <tr><td>Прочитано</td><td>{{ "%g"|format(riadok.prochytano) }}</td></tr>
+    <tr><td><strong>Перейде новому вчителеві</strong></td><td><strong>{{ "%g"|format(peredaty_hodyn) }}</strong></td></tr>
+  </table></div>
+
+  <form method="post" class="mt-16">
+    <input type="hidden" name="vchytel_id" value="{{ riadok.vchytel_id }}">
+    <input type="hidden" name="predmet_id" value="{{ riadok.predmet_id }}">
+
+    <label>З якого дня веде новий учитель</label>
+    <input type="date" name="data" value="{{ data }}" required
+           onchange="window.location = '?vchytel_id={{ riadok.vchytel_id }}&predmet_id={{ riadok.predmet_id }}&data=' + this.value;">
+    <span class="form-hint">Зміна дати перераховує числа вище.</span>
+
+    <label>Кому переходять години</label>
+    <select name="do_vchytel_id" required>
+      <option value="">— оберіть —</option>
+      {% for v in vsi_vchyteli %}
+        <option value="{{ v.id }}">{{ v.pib }}</option>
+      {% endfor %}
+    </select>
+
+    <label class="checkbox-label">
+      <input type="checkbox" name="zaminyty_v_plani" checked>
+      Одразу замінити вчителя в навчальному плані (усі класи з цим предметом)
+    </label>
+
+    <div class="mt-16">
+      <button type="submit" onclick="return confirm(this.dataset.pytannya);"
+              data-pytannya="Передати {{ '%g'|format(peredaty_hodyn) }} год «{{ riadok.predmet_nazva }}» від {{ riadok.vchytel_pib }}?">Передати</button>
+      <a class="btn btn-secondary" href="/zalyshky-godyn">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

@@ -1,0 +1,131 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Тарифікація</h1>
+  {% if zapysy_po_vchytelyu %}
+  <a class="btn btn-purple" href="/taryfikatsiya/excel">Завантажити в Excel</a>
+  {% endif %}
+  <p class="hint-info">
+    Це обчислюваний звіт, а не окремий довідник — дані беруться з "Навчального плану"
+    (заповніть його напряму або через "Матрицю плану" в картці вчителя).
+    Річні години = сума тижневих годин × {{ tyzhniv }} навчальних тижнів
+    (з "Налаштувань школи").
+  </p>
+
+  {# затвердження річних годин: від нього рахують "Залишки годин" #}
+  <div class="hint-plain mt-16">
+    {% if zatverdzhennya %}
+      <strong>Річні години затверджено {{ data_ua(zatverdzhennya.koly) }}</strong>
+      ({{ zatverdzhennya.n }} пар вчитель-предмет, {{ "%g"|format(zatverdzhennya.hodyn|round(1)) }} год).
+      «Залишки годин» рахують від них, а не від поточного плану.
+      {% if not ye_peredachi %}
+      <form method="post" action="/taryfikatsiya/zatverdyty" class="inline-form"
+            onsubmit="return confirm('Затвердити річні години заново за поточним планом? Попереднє затвердження буде замінено.');">
+        <button type="submit" class="btn btn-small btn-secondary">Затвердити заново</button>
+      </form>
+      <form method="post" action="/taryfikatsiya/skasuvaty-zatverdzhennya" class="inline-form"
+            onsubmit="return confirm('Скасувати затвердження? «Залишки годин» знову рахуватимуть від поточного плану.');">
+        <button type="submit" class="btn btn-small btn-secondary">Скасувати затвердження</button>
+      </form>
+      {% else %}
+        Є передачі годин між учителями — щоб затвердити заново, спершу скасуйте їх у «Залишках годин».
+      {% endif %}
+    {% else %}
+      Річні години ще не затверджено — «Залишки годин» рахують від поточного плану.
+      Затвердіть їх на початку року, коли тарифікацію погоджено: далі зміни плану
+      заплановане вже не перепишуть, а при зміні вчителя залишок передається новому.
+      {% if zapysy_po_vchytelyu %}
+      <form method="post" action="/taryfikatsiya/zatverdyty" class="inline-form"
+            onsubmit="return confirm('Затвердити річні години за поточною тарифікацією?');">
+        <button type="submit" class="btn btn-small">Затвердити річні години</button>
+      </form>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  {% if ponad_stelyu %}
+    <div class="alert alert-warning mt-16">
+      <strong>Понад 1,5 ставки ({{ maks_navantazhennya }} год/тиждень):</strong>
+      {{ ponad_stelyu|join(", ") }}. Закон стелі не встановлює — перевірте, чи таке навантаження
+      погоджено з учителем і чи витримує його розклад.
+    </div>
+  {% endif %}
+  <p class="hint-plain">
+    Ставка — {{ stavka }} год/тиждень. <strong>Жирним</strong> — понад 1,5 ставки ({{ maks_navantazhennya }} год,
+    орієнтир для перевірки); курсивом — понад одну ставку.
+  </p>
+
+  {% if not zapysy_po_vchytelyu %}
+    <p class="empty-row">Тарифікація порожня — заповніть "Навчальний план" або "Матрицю плану" вчителя.</p>
+  {% else %}
+
+  <div class="tar-layout">
+    {# кнопки вчителів - рівно 2 стовпці, ділимо навпіл (нікого не пропускаємо;
+       при непарній кількості другий стовпець на 1 коротший) #}
+    {% set na_stovpets = (zapysy_po_vchytelyu|length / 2)|round(0, 'ceil')|int %}
+    <div class="tar-tabs-wrap" id="tar-tabs-row">
+      {% for stovpets in zapysy_po_vchytelyu|batch(na_stovpets) %}
+      {% set stovp_idx = loop.index0 %}
+      <div class="tar-tabs-col">
+        {% for grupa in stovpets %}
+        {% set tab_idx = stovp_idx * na_stovpets + loop.index %}
+        <button type="button" class="btn btn-small {{ 'btn-teal' if tab_idx == 1 else 'btn-secondary' }} tar-tab-btn"
+                data-tab="tar-tab-{{ tab_idx }}">
+          {{ skorochene_pib(grupa.vchytel_pib) }} <span class="tab-count"{{ ' style="font-weight:bold"'|safe if grupa.ponad_stelyu else (' style="font-style:italic"'|safe if grupa.ponad_stavku else '') }}>— {{ "%g"|format(grupa.razom_tyzhden) }} год</span>
+        </button>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="tar-panels-col">
+      {% for grupa in zapysy_po_vchytelyu %}
+      <div class="tab-panel tar-tab-panel{{ '' if loop.first else ' hidden' }}" id="tar-tab-{{ loop.index }}">
+        <div class="table-wrap"><table>
+          <tr>
+            <th>Предмет</th>
+            <th>Годин / тиждень (сумарно)</th>
+            <th>Годин / рік (обчислено)</th>
+            <th>Розподілено по класах</th>
+          </tr>
+          {% for z in grupa.zapysy %}
+          <tr>
+            <td>{{ z.predmet_nazva }}</td>
+            <td>{{ "%g"|format(z.rozpodileno_tyzhden) }}</td>
+            <td>{{ "%g"|format(z.godyn_rik) }}</td>
+            <td class="wrap-cell">{{ z.klasy_opys or "—" }}</td>
+          </tr>
+          {% endfor %}
+          <tr>
+            <th>Разом</th>
+            <th>{{ "%g"|format(grupa.razom_tyzhden) }}{% if grupa.ponad_stelyu %} <span class="form-hint">(понад 1,5 ставки — перевірте)</span>{% elif grupa.ponad_stavku %} <span class="form-hint">(понад ставку)</span>{% endif %}</th>
+            <th>{{ "%g"|format(grupa.razom_rik) }}</th>
+            <th></th>
+          </tr>
+        </table></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const buttons = document.querySelectorAll(".tar-tab-btn");
+      buttons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          buttons.forEach(function (b) {
+            b.classList.remove("btn-teal");
+            b.classList.add("btn-secondary");
+          });
+          btn.classList.remove("btn-secondary");
+          btn.classList.add("btn-teal");
+
+          document.querySelectorAll(".tar-tab-panel").forEach(function (panel) {
+            panel.classList.add("hidden");
+          });
+          document.getElementById(btn.dataset.tab).classList.remove("hidden");
+        });
+      });
+    })();
+  </script>
+  {% endif %}
+{% endblock %}

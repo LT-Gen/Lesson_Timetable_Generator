@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Додатково: {{ kabinet.nazva }}</h1>
+  <a class="btn btn-secondary" href="/kabinety">← До списку кабінетів</a>
+
+  <p class="hint-info">
+    Довідкові поля кабінету. <strong>Мінімальна місткість</strong> — орієнтир для
+    лабораторних (не ставити велику групу в малий кабінет). <strong>Корпус</strong> і
+    <strong>поверх</strong> — для орієнтації в будівлі. <strong>Пріоритет</strong> —
+    підказка, який кабінет обирати першим, коли підходить кілька. Генератор розкладу
+    сам розставляє за місткістю, типом прив'язки й доступністю; ці поля на розстановку
+    поки не впливають.
+  </p>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" class="mt-16">
+    <label>Мінімальна місткість (для лабораторних)</label>
+    <input type="number" name="minimalna_mistkist" min="0"
+           value="{{ kabinet.minimalna_mistkist if kabinet.minimalna_mistkist else '' }}">
+
+    <label>Корпус</label>
+    <input type="text" name="korpus" value="{{ kabinet.korpus if kabinet.korpus else '' }}">
+
+    <label>Поверх</label>
+    <input type="text" name="poverh" value="{{ kabinet.poverh if kabinet.poverh else '' }}">
+
+    <label>Пріоритет використання (менше число = вищий пріоритет)</label>
+    <input type="number" name="priorytet" min="0"
+           value="{{ kabinet.priorytet if kabinet.priorytet else '' }}">
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/kabinety">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

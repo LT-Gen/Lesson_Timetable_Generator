@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Масове додавання асистентів</h1>
+  <p class="hint-plain">
+    Оберіть клас і введіть по одному ПІБ асистента в кожному рядку — усі додані асистенти
+    призначаються на цей клас (супровід "Всі уроки класу", ставка 1.0). Дублікати (за
+    точним співпадінням імені в межах цього класу) буде пропущено. Ставку, тип супроводу
+    й конкретні предмети можна буде налаштувати потім через "Редагувати".
+  </p>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  {% if message %}
+    <div class="alert alert-success">
+      {{ message }}
+    </div>
+  {% endif %}
+
+  {% if all_klasy %}
+  <form method="post">
+    <label>Клас</label>
+    <select name="klas_id" required>
+      <option value="">— оберіть —</option>
+      {% for k in all_klasy %}
+        <option value="{{ k.id }}">{{ k.paralel }}{% if k.litera %}-{{ k.litera }}{% endif %}</option>
+      {% endfor %}
+    </select>
+
+    <label class="mt-16">Перелік ПІБ асистентів (по одному на рядок)</label>
+    <textarea name="pib_list" rows="15"
+              placeholder="Іванова Ольга Петрівна&#10;Сидорчук Наталія Іванівна"></textarea>
+
+    <div>
+      <button type="submit">Додати всіх</button>
+      <a class="btn btn-secondary" href="/asystenty">Скасувати</a>
+    </div>
+  </form>
+  {% else %}
+    <p class="hint-plain">Спершу додайте хоча б один клас.</p>
+  {% endif %}
+{% endblock %}

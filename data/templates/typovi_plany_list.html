@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Типові навчальні плани МОН</h1>
+  <p class="hint-info">
+    Офіційні таблиці годин по предметах — лише для перегляду й звірки, точно як
+    надруковано в документах МОН.
+  </p>
+
+  <div id="osvitni-programy" class="normatyvnyi-dokument">
+    <p><strong>Офіційний перелік чинних типових освітніх програм для 1-11(12) класів</strong></p>
+    <p class="hint-info">
+      Використовується для: точних годин навчального плану по кожному предмету й класу
+      — джерело для полів "Годин на тиждень"
+      у "Навчальному плані" та нормативів "Граничне"/"Фактичне навантаження" у картці класу.
+    </p>
+    <a href="https://mon.gov.ua/osvita-2/zagalna-serednya-osvita/osvitni-programi" target="_blank" rel="noopener">
+      Переглянути перелік програм на mon.gov.ua →
+    </a>
+  </div>
+
+  <div class="table-wrap mt-24"><table>
+    <tr><th>Назва плану</th><th class="col-actions"></th></tr>
+    {% for kod, plan in plany.items() %}
+    <tr>
+      <td>{{ plan.nazva }}</td>
+      <td><a class="btn btn-small" href="/typovi-plany/{{ kod }}">Переглянути</a></td>
+    </tr>
+    {% endfor %}
+  </table></div>
+{% endblock %}

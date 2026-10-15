@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Заміни на {{ data_str or "..." }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #222; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    .pidzagolovok { color: #666; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; font-size: 14px; }
+    th { background: #eee; }
+    .status-skasovano { color: #a12622; font-weight: bold; }
+    .status-zamina { color: #1e7e34; font-weight: bold; }
+    .no-print { margin-bottom: 20px; }
+    .no-print input, .no-print button { font-size: 14px; padding: 6px 10px; }
+    .empty { color: #888; font-style: italic; padding: 20px 0; }
+    @media print {
+      .no-print { display: none; }
+      body { margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <form method="get" action="/zaminy/druk">
+      <label>Дата: <input type="date" name="data" value="{{ data_str }}"></label>
+      <button type="submit">Показати</button>
+      {% if data_str %}<button type="button" onclick="window.print()">Друкувати</button>{% endif %}
+      <a href="/zaminy">← Назад до Замін</a>
+    </form>
+  </div>
+
+  {% if data_str %}
+    <h1>Заміни та скасування на {{ data_str }}</h1>
+    <p class="pidzagolovok">Аркуш замін для оголошення в учительській</p>
+
+    {% if zapysy %}
+      <table>
+        <tr>
+          <th>Клас</th>
+          <th>Урок</th>
+          <th>Предмет</th>
+          <th>Плановий вчитель</th>
+          <th>Статус</th>
+          <th>Заміна / причина</th>
+        </tr>
+        {% for z in zapysy %}
+        <tr>
+          <td>{{ z.paralel }}{% if z.litera %}-{{ z.litera }}{% endif %}</td>
+          <td>{{ z.urok_nomer }}</td>
+          <td>{{ z.predmet_nazva }}</td>
+          <td>{{ z.planovanyi_pib or "—" }}</td>
+          <td class="{{ 'status-skasovano' if z.status == 'skasovano' else 'status-zamina' if z.status == 'zamina' else '' }}">
+            {% if z.status == "skasovano" %}Скасовано
+            {% elif z.status == "zamina" %}Заміна
+            {% else %}Проведено
+            {% endif %}
+          </td>
+          <td>
+            {% if z.status == "zamina" %}{{ z.faktychnyi_pib or "—" }}
+            {% else %}{{ z.prychyna or "—" }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="empty">На цю дату записів немає.</p>
+    {% endif %}
+  {% else %}
+    <p class="empty">Оберіть дату вище, щоб побачити список.</p>
+  {% endif %}
+</body>
+</html>

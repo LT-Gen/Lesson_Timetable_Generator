@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Предмети</h1>
+  <a class="btn" href="/predmety/new">+ Додати предмет</a>
+  <a class="btn btn-secondary" href="/predmety/bulk">Масове додавання</a>
+  <p class="hint-plain"><span class="nazva-unused">Червоним</span> — предмет не задіяний у навчальному плані.</p>
+  <p class="hint-plain">
+    Колір рядка — складність предмета:
+    <span class="slozhnist-vazhkyi">важкий</span>,
+    <span class="slozhnist-serednii">середній</span>,
+    <span class="slozhnist-legkyi">легкий</span>.
+  </p>
+  <div class="table-wrap"><table>
+    <tr>
+      <th class="col-narrow">№</th>
+      <th>Назва</th>
+      <th>Скороч.</th>
+      <th>Гранична норма</th>
+      <th>Обов'язкова пара</th>
+      <th>Поділ на підгрупи</th>
+      <th class="col-actions"></th>
+    </tr>
+    {% for p in predmety %}
+    {% set slozhnist_klas = "slozhnist-vazhkyi" if p.vazhkist == "vazhkyi" else ("slozhnist-serednii" if p.vazhkist == "serednii" else "slozhnist-legkyi") %}
+    <tr class="{{ slozhnist_klas }}">
+      <td>{{ loop.index }}</td>
+      <td>
+        {% if p.u_plani %}
+          {{ p.nazva }}
+        {% else %}
+          <span class="nazva-unused" title="Не використовується в навчальному плані">{{ p.nazva }}</span>
+        {% endif %}
+      </td>
+      <td>{{ p.skorochennya or "—" }}</td>
+      <td>
+        {% if p.vrahovuyetsya_u_hranychnomu %}Так
+        {% else %}<span class="nazva-unused">Ні</span>
+        {% endif %}
+      </td>
+      <td>{{ "Так" if p.zdvoyeni_urok else "Ні" }}</td>
+      <td>
+        {% set maye_normu = p.normovanyi_kod and NORMY_PODILU_PIDGRUPY.get(p.normovanyi_kod) %}
+        {% if p.podil_pravylo == "avto" %}
+          Авто{% if not maye_normu %} <span class="form-hint">(норми нема)</span>{% endif %}
+        {% else %}
+          {% if maye_normu %}<span class="nazva-unused" title="Норма МОН вимагає поділу, перевірку вимкнено">Ніколи ⚠</span>
+          {% else %}Ніколи
+          {% endif %}
+        {% endif %}
+      </td>
+      <td>
+        <div class="actions-cell">
+          <a class="btn btn-small" href="/predmety/{{ p.id }}/edit">Редагувати</a>
+          <a class="btn btn-small btn-secondary" href="/predmety/{{ p.id }}/dodatkovo">Додатково</a>
+          <form method="post" action="/predmety/{{ p.id }}/delete"
+                onsubmit="return confirm('Видалити предмет {{ p.nazva }}?{% if p.naslidky %} Разом з ним зникнуть: {{ p.naslidky }}.{% endif %}');">
+            <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="empty-row">Предметів ще немає</td></tr>
+    {% endfor %}
+  </table></div>
+{% endblock %}

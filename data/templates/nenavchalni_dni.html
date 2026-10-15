@@ -1,0 +1,142 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Календар ненавчальних днів</h1>
+
+  {% if not daty_zadani %}
+    <p class="alert alert-error">
+      Спершу заповніть дати семестрів у
+      <a href="/nalashtuvannya">Налаштуваннях школи</a> — без них немає навчального
+      року, який тут показувати.
+    </p>
+  {% else %}
+
+  <p class="hint-info">
+    <strong>Клік по навчальному дню:</strong> святковий → карантин → знову
+    навчальний. «Святковий» — школа не працює за календарем (державне свято чи
+    перенесений день). «Карантин» — заняття зупинено раптово: карантин, морози
+    (актовані дні), аварія, повітряна тривога.
+  </p>
+  <p class="hint-info">
+    <strong>Клік по вихідному</strong> (звичайно суботі) робить його
+    <strong>робочим</strong> — це відпрацювання. Кожен наступний клік міняє, за
+    розкладом якого дня школа працює: за Пн → за Вт → … → за Пт → знову вихідний.
+    У клітинці підписано обраний день. Канікули не перемикаються; днів поза
+    семестрами в календарі немає — він обрізаний по датах із «Налаштувань школи».
+  </p>
+  <p class="hint-note">
+    У звіті <a href="/zalyshky-godyn">«Залишки годин»</a> свято й карантин
+    <strong>віднімають</strong> уроки того дня тижня (борг учителя), а
+    відпрацювання <strong>додає</strong> уроки того дня, за розкладом якого школа
+    працювала, — так борг і закривається. На згенерований розклад календар не
+    впливає: розклад тижневий, а ці дні — конкретні дати.
+  </p>
+
+  <div class="kalendar-legenda">
+    <div><span class="kalendar-zrazok den-navchalnyi"></span> Навчальний день</div>
+    <div><span class="kalendar-zrazok den-svyato"></span> Святковий</div>
+    <div><span class="kalendar-zrazok den-karantyn"></span> Карантин</div>
+    <div><span class="kalendar-zrazok den-robochyi"></span> Відпрацювання</div>
+    <div><span class="kalendar-zrazok den-kanikuly"></span> Канікули</div>
+    <div><span class="kalendar-zrazok den-vyhidnyi"></span> Вихідний</div>
+  </div>
+
+  <p class="hint-plain mt-16">
+    Навчальних днів у році: <strong>{{ navchalnyh_dniv }}</strong> ·
+    святкових: <strong id="lich-svyato">{{ kilkist_svyat }}</strong> ·
+    карантинних: <strong id="lich-karantyn">{{ kilkist_karantyn }}</strong> ·
+    відпрацювань: <strong id="lich-robochyh">{{ kilkist_robochyh }}</strong>
+  </p>
+
+  {% for r in roky %}
+  <h2 class="section-title kalendar-rik">{{ r.rik }}</h2>
+  <div class="kalendar-misyatsi">
+    {% for m in r.misyatsi %}
+    <div class="kalendar-misyats">
+      <h3>{{ m.nazva }}</h3>
+      <table class="kalendar-tablytsya no-select">
+        <tr><th>Пн</th><th>Вт</th><th>Ср</th><th>Чт</th><th>Пт</th><th>Сб</th><th>Нд</th></tr>
+        {% for tyzhden in m.tyzhni %}
+        <tr>
+          {% for d in tyzhden %}
+            {% if d %}
+              <td class="kalendar-den" data-data="{{ d.strftime('%Y-%m-%d') }}">{{ d.day }}</td>
+            {% else %}
+              <td class="kalendar-porozhno"></td>
+            {% endif %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  <form method="post" id="save-form" class="mt-24">
+    <input type="hidden" name="data" id="data-input">
+    <button type="submit">Зберегти</button>
+    <a class="btn btn-secondary" href="/nalashtuvannya">Скасувати</a>
+  </form>
+
+  <script>
+    (function () {
+      // {дата: тип} - лише позначені завучем дні; порожньо = звичайний навчальний
+      var obrani = {{ obrani_json|safe }};
+      // {дата: 'navchalnyi'|'kanikuly'|'vyhidnyi'} - природа дня (поза семестрами днів немає)
+      var typy = {{ typy_json|safe }};
+      var DNI = {{ dni_skorocheno|tojson }};
+      // Два різні цикли: навчальний день можна "вимкнути", вихідний - навпаки
+      // "увімкнути" як відпрацювання за розкладом конкретного дня тижня.
+      var TSYKL_NAVCHALNYI = [null, "svyato", "karantyn"];
+      var TSYKL_VYHIDNYI = [null, "robochyi:1", "robochyi:2", "robochyi:3",
+                            "robochyi:4", "robochyi:5"];
+
+      function pomalyuvaty(td) {
+        var d = td.dataset.data;
+        var kod = obrani[d];
+        var typ = kod ? kod.split(":")[0] : (typy[d] || "navchalnyi");
+        td.className = "kalendar-den den-" + typ;
+        td.textContent = td.dataset.chyslo;
+        if (kod && typ === "robochyi") {
+          var za = document.createElement("span");
+          za.className = "za-den";
+          za.textContent = "за " + DNI[kod.split(":")[1]];
+          td.appendChild(za);
+        }
+        if (typy[d] !== "kanikuly") { td.classList.add("kalendar-klikabelnyi"); }
+      }
+
+      function perelichyty() {
+        var s = 0, k = 0, r = 0;
+        for (var d in obrani) {
+          if (obrani[d] === "svyato") { s++; }
+          else if (obrani[d] === "karantyn") { k++; }
+          else if (obrani[d].indexOf("robochyi") === 0) { r++; }
+        }
+        document.getElementById("lich-svyato").textContent = s;
+        document.getElementById("lich-karantyn").textContent = k;
+        document.getElementById("lich-robochyh").textContent = r;
+      }
+
+      document.querySelectorAll(".kalendar-den").forEach(function (td) {
+        var d = td.dataset.data;
+        td.dataset.chyslo = td.textContent.trim();
+        pomalyuvaty(td);
+        if (typy[d] === "kanikuly") { return; }     // канікули не перемикаються
+        var tsykl = (typy[d] === "vyhidnyi") ? TSYKL_VYHIDNYI : TSYKL_NAVCHALNYI;
+        td.addEventListener("click", function () {
+          var i = tsykl.indexOf(obrani[d] || null);
+          var nastupnyi = tsykl[(i + 1) % tsykl.length];
+          if (nastupnyi) { obrani[d] = nastupnyi; } else { delete obrani[d]; }
+          pomalyuvaty(td);
+          perelichyty();
+        });
+      });
+
+      document.getElementById("save-form").addEventListener("submit", function () {
+        document.getElementById("data-input").value = JSON.stringify(obrani);
+      });
+    })();
+  </script>
+  {% endif %}
+{% endblock %}

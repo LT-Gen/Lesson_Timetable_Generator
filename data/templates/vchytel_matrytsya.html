@@ -1,0 +1,185 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Матриця навчального плану: {{ vchytel.pib }}</h1>
+  <p class="hint-info">
+    Введіть <strong>тижневі</strong> години для кожного предмета в кожному класі, який
+    веде цей вчитель (як і в "Навчальному плані" — те саме число, ті самі рядки). Річні дані в
+    "Тарифікації" рахуються з цього автоматично. Порожня клітинка або 0 — вчитель не веде цей
+    предмет у цьому класі. Можна вводити й дробові значення з кроком 0.5 (напр. "3.5") — це
+    ціла частина + один урок раз на два тижні; на який саме тиждень (парний/непарний) лягає
+    той урок, система обирає сама, щоб тижні лишались приблизно порівну навантаженими.
+  </p>
+  <p class="hint-note">
+    Якщо виставити 0 в навантаження по предмету або видалити зовсім дані — при збереженні
+    рядок предмета зникне (запис навчального плану для цього класу видаляється).
+  </p>
+
+  {% if not all_klasy %}
+    <p class="alert alert-error">Спершу додайте хоча б один клас.</p>
+  {% elif not all_predmety %}
+    <p class="alert alert-error">Спершу додайте хоча б один предмет.</p>
+  {% else %}
+
+  <div class="inline-select-group">
+    <label>Додати предмет:</label>
+    <select id="add-predmet-select">
+      {% for p in all_predmety %}
+        <option value="{{ p.id }}" data-nazva="{{ p.nazva }}">{{ p.nazva }}</option>
+      {% endfor %}
+    </select>
+    <button type="button" class="btn btn-small" onclick="addPredmetRow()">+ Додати рядок</button>
+  </div>
+
+  <form method="post" id="matrix-form">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Предмет / Клас</th>
+            {% for k in all_klasy %}
+              <th>{{ k.paralel }}{% if k.litera %}-{{ k.litera }}{% endif %}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody id="matrix-body">
+          {% for p in predmety_z_danymy %}
+          <tr data-predmet-id="{{ p.id }}">
+            <td>{{ p.nazva }}</td>
+            {% for k in all_klasy %}
+              {% set current = existing_map.get((k.id, p.id), '') %}
+              {% set drob = drobovi_map.get((k.id, p.id)) %}
+              {% set sem = semestrovi_map.get((k.id, p.id)) %}
+              {# data-dod - години клітинки поза полем вводу (дробові, семестрові
+                 як середнє за рік): рядок суми додає їх до введеного #}
+              <td data-dod="{{ ((((drob.parnyi + drob.neparnyi) / 2) if drob else 0) + (sem.serednye if sem else 0))|round(2) }}">
+                {% if sem %}
+                  {# предмет у цьому класі розписано по семестрах - тут не
+                     редагується, лише у формі навчального плану #}
+                  <a class="form-hint" href="/navchalnyj-plan/klas/{{ k.id }}/predmet/{{ p.id }}/edit?semestr={{ sem.semestr }}"
+                     title="Предмет розписано по семестрах — редагується в «Навчальному плані»">{{ sem.opys }}</a>
+                {% else %}
+                <input type="number" min="0" step="0.5" class="matrix-input"
+                       name="tyzhnevi_{{ p.id }}_{{ k.id }}"
+                       value="{{ current if current else '' }}">
+                {% endif %}
+                {% if drob %}
+                  <a class="form-hint matrix-drob-link"
+                     href="/navchalnyj-plan/klas/{{ k.id }}/predmet/{{ p.id }}/edit"
+                     title="Парний: {{ drob.parnyi or '—' }}, непарний: {{ drob.neparnyi or '—' }} год/тижд (окремо від числа вище)">
+                    +{{ "%.1f"|format((drob.parnyi + drob.neparnyi) / 2) }} дроб.
+                  </a>
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="matrix-suma">
+            <th>Разом: <span id="matrix-razom">0</span> год/тижд</th>
+            {% for k in all_klasy %}
+              <th class="matrix-suma-klasu">0</th>
+            {% endfor %}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {% if not predmety_z_danymy %}
+      <p class="hint-plain mt-16">Рядків ще немає — оберіть предмет вище і натисніть "Додати рядок".</p>
+    {% endif %}
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/vchyteli">Скасувати</a>
+    </div>
+  </form>
+
+  {% if pidgrupa2_rows %}
+  <p class="hint-warning mt-16">
+    Цей вчитель веде <strong>2-гу підгрупу</strong> поділу в цих класах. Тут не
+    редагується — змінюйте в "Навчальному плані" відповідного класу (поле "Вчитель
+    підгрупи 2"). Години нижче враховані в "Тарифікації" й "Залишках годин".
+  </p>
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Клас</th><th>Предмет</th><th>Год/тижд</th><th>1-ша підгрупа (осн. вчитель)</th>
+      </tr>
+      {% for r in pidgrupa2_rows %}
+      <tr>
+        <td>{{ r.paralel }}{% if r.litera %}-{{ r.litera }}{% endif %}</td>
+        <td>{{ r.predmet_nazva }}</td>
+        <td>{{ r.godyn_tyzhden }}{% if r.parnist != 'oboydva' %} ({{ 'парн.' if r.parnist == 'parnyi' else 'непарн.' }}){% endif %}{% if r.semestr %}, {{ SEMESTR_KOROTKO[r.semestr] }}{% endif %}</td>
+        <td>{{ r.vchytel1_pib }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  <script>
+    const KLASY = {{ all_klasy_json|safe }};
+    const PIDGRUPA2_RAZOM = {{ pidgrupa2_razom|round(2) }};
+
+    // рядок суми: перераховується одразу під час введення, а не після збереження
+    function perarakhuvatySumu() {
+      const sumy = KLASY.map(() => 0);
+      document.querySelectorAll("#matrix-body tr").forEach(function (tr) {
+        const komirky = tr.querySelectorAll("td");
+        for (let i = 1; i < komirky.length; i++) {
+          const td = komirky[i];
+          const input = td.querySelector("input.matrix-input");
+          sumy[i - 1] += (parseFloat(input && input.value) || 0) + (parseFloat(td.dataset.dod) || 0);
+        }
+      });
+      const okrugl = (x) => Math.round(x * 100) / 100;
+      document.querySelectorAll(".matrix-suma-klasu").forEach(function (th, i) {
+        th.textContent = sumy[i] ? okrugl(sumy[i]) : "—";
+      });
+      const razom = okrugl(sumy.reduce((a, b) => a + b, 0) + PIDGRUPA2_RAZOM);
+      const pole = document.getElementById("matrix-razom");
+      pole.textContent = razom + (PIDGRUPA2_RAZOM ? " (з 2-ю підгрупою)" : "");
+      // як у Тарифікації: понад ставку (18) - курсив, понад 1,5 ставки (27) - жирний
+      pole.parentElement.title = razom > 27 ? "Понад 1,5 ставки — перевірте" : (razom > 18 ? "Понад ставку" : "");
+      pole.parentElement.classList.toggle("ponad-stavku", razom > 18 && razom <= 27);
+      pole.parentElement.classList.toggle("ponad-stelyu", razom > 27);
+    }
+    document.getElementById("matrix-body").addEventListener("input", perarakhuvatySumu);
+    document.addEventListener("DOMContentLoaded", perarakhuvatySumu);
+
+    function addPredmetRow() {
+      const select = document.getElementById("add-predmet-select");
+      const predmetId = select.value;
+      const predmetNazva = select.options[select.selectedIndex].dataset.nazva;
+
+      if (document.querySelector(`#matrix-body tr[data-predmet-id="${predmetId}"]`)) {
+        alert("Цей предмет уже додано в таблицю.");
+        return;
+      }
+
+      const tr = document.createElement("tr");
+      tr.dataset.predmetId = predmetId;
+
+      const tdNazva = document.createElement("td");
+      tdNazva.textContent = predmetNazva;
+      tr.appendChild(tdNazva);
+
+      for (const klas of KLASY) {
+        const td = document.createElement("td");
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = "0";
+        input.step = "0.5";
+        input.className = "matrix-input";
+        input.name = `tyzhnevi_${predmetId}_${klas.id}`;
+        td.appendChild(input);
+        tr.appendChild(td);
+      }
+
+      document.getElementById("matrix-body").appendChild(tr);
+      perarakhuvatySumu();
+    }
+  </script>
+  {% endif %}
+{% endblock %}

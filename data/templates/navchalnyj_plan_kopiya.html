@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Скопіювати навчальний план з іншого класу</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <p class="hint-info">
+    Копіюються всі записи плану класу-джерела: предмети, години (щотижня / парний /
+    непарний), здвоєні уроки, максимум на день, закріплений день, вчителі (основний
+    і 2-ї підгрупи). Міжпредметні групи не копіюються — вони належать конкретному
+    класу. Після копіювання поправте вчителів, які в цьому класі інші.
+  </p>
+
+  <form method="post">
+    <label>З якого класу (джерело)</label>
+    <select name="z_klas_id" required>
+      <option value="">— оберіть —</option>
+      {% for k in klasy %}
+        <option value="{{ k.id }}" {{ "selected" if z_klas == k.id else "" }}>
+          {{ klas_nazva(k.paralel, k.litera) }} ({{ k.riadkiv }} рядків)
+        </option>
+      {% endfor %}
+    </select>
+
+    <label>У який клас (ціль)</label>
+    <select name="u_klas_id" required>
+      <option value="">— оберіть —</option>
+      {% for k in klasy %}
+        <option value="{{ k.id }}" {{ "selected" if u_klas == k.id else "" }}>
+          {{ klas_nazva(k.paralel, k.litera) }}{% if k.riadkiv %} (уже є {{ k.riadkiv }} рядків){% else %} (порожній){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+
+    <label class="checkbox-label mt-16">
+      <input type="checkbox" name="zaminyty">
+      Замінити наявний план класу-цілі (інакше копіювання в непорожній клас не виконується)
+    </label>
+
+    <div>
+      <button type="submit">Скопіювати</button>
+      <a class="btn btn-secondary" href="/navchalnyj-plan">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

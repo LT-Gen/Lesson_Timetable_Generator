@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Сталася помилка</h1>
+  <div class="alert alert-error">
+    Застосунок не зміг виконати дію на сторінці <code>{{ shlyah }}</code>
+    ({{ chas }}). Ваші дані не постраждали — база записується лише після
+    успішного завершення кожної дії.
+  </div>
+  <p class="hint-info">
+    Що робити: поверніться назад і спробуйте ще раз. Якщо повторюється —
+    надішліть розробнику файл
+    <code>{{ log_fajl }}</code>
+    (там записано, що саме сталося) і опишіть, що ви натискали. Файл не містить
+    ваших даних, лише технічний опис збою.
+  </p>
+  <p class="hint-plain">Технічно: <code>{{ pomylka }}</code></p>
+  <a class="btn btn-secondary" href="javascript:history.back()">← Назад</a>
+  <a class="btn" href="/">На головну</a>
+{% endblock %}

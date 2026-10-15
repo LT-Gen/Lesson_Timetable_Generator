@@ -1,0 +1,165 @@
+{% extends "layout.html" %}
+{% macro chyslo(x) %}{{ "%g"|format(x) if x else "—" }}{% endmacro %}
+{% block content %}
+  <h1>Залишки годин</h1>
+  <p class="hint-info">
+    Прогноз на основі навчального плану й дат семестрів, СКОРИГОВАНИЙ реальними даними з
+    журналу "Заміни". Кожен рядок — власний тариф вчителя за предметом. "Скасовано по
+    заміні" — скільки його уроків не відбулось як його предмет (байдуже, зовсім ніхто не
+    прийшов чи прийшов хтось з іншим предметом) — це його борг, він нікуди не зникає,
+    його треба вичитати пізніше. "Втрачено (свята/карантин)" — уроки, що припали на дні з
+    <a href="/nenavchalni-dni">календаря ненавчальних днів</a>: вони теж не прочитані,
+    це такий самий борг. "Відпрацьовано" — навпаки: суботи (чи інші вихідні), які
+    школа відпрацювала за розкладом пропущеного дня, — вони цей борг закривають.
+    "Проведено по заміні" — скільки ДОДАТКОВИХ годин свого
+    предмета він реально провів, підмінюючи чужий урок — це плюс до його особистого заліку.
+    Зеленим позначено рядки, де години за рік уже вичитані.
+  </p>
+
+  {% if not semestry_zapovneni %}
+    <p class="alert alert-error">
+      Дати семестрів не заповнені в "Налаштуваннях школи" — розрахунок буде неточним (0 тижнів пройшло).
+    </p>
+  {% endif %}
+
+  <form method="post" class="inline-select-group">
+    <label>Період:</label>
+    <select name="period">
+      <option value="1" {{ "selected" if period == "1" }}>І семестр</option>
+      <option value="2" {{ "selected" if period == "2" }}>ІІ семестр</option>
+      <option value="rik" {{ "selected" if period == "rik" }}>Весь рік</option>
+    </select>
+
+    <label>Станом на дату:</label>
+    <input type="date" name="na_datu" value="{{ na_datu }}">
+
+    <label>Вчитель:</label>
+    <select name="vchytel_id">
+      <option value="">— всі —</option>
+      {% for v in all_vchyteli %}
+        <option value="{{ v.id }}" {{ "selected" if filter_vchytel_id == v.id|string else "" }}>{{ v.pib }}</option>
+      {% endfor %}
+    </select>
+
+    <label>Предмет:</label>
+    <select name="predmet_id">
+      <option value="">— всі —</option>
+      {% for p in all_predmety %}
+        <option value="{{ p.id }}" {{ "selected" if filter_predmet_id == p.id|string else "" }}>{{ p.nazva }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="btn btn-small">Показати</button>
+  </form>
+
+  <p class="hint-plain mt-16">
+    Минуло навчальних тижнів: <strong>{{ tyzhniv_projshlo }}</strong> з {{ tyzhniv_vsogo }}.
+  </p>
+
+  <p class="hint-plain">
+    {% if zatverdzheno_koly %}
+      «Всього годин» — річні години, затверджені {{ data_ua(zatverdzheno_koly) }} у «Тарифікації»
+      (з урахуванням передач). Змінився вчитель — «Передати…» в його рядку.
+    {% else %}
+      «Всього годин» рахується з поточного плану. Щоб зафіксувати річні години й мати змогу
+      передавати залишок новому вчителеві — <a href="/taryfikatsiya">затвердьте їх у «Тарифікації»</a>.
+    {% endif %}
+  </p>
+
+  {# стан семестрів: закрито (знімок) чи рахується наживо - і кнопки #}
+  {% for s in semestry_info if period == "rik" or period == s.nomer|string %}
+    <div class="hint-plain">
+      <strong>{{ s.nazva }}</strong>{% if s.poch and s.kin %} ({{ data_ua(s.poch) }} — {{ data_ua(s.kin) }}){% endif %}:
+      {% if s.zakryto %}
+        закрито, прочитане зафіксовано станом на {{ data_ua(s.zakryto.stanom_na) }}
+        — зміни плану, вчителів і замін цей семестр уже не змінюють.
+        <form method="post" action="/zalyshky-godyn/vidkryty-semestr" class="inline-form"
+              onsubmit="return confirm('Відкрити {{ s.nazva }} знову? Зафіксовані числа буде відкинуто, і семестр знову рахуватиметься за поточним планом і журналом замін. Потім його треба буде закрити ще раз.');">
+          <input type="hidden" name="semestr" value="{{ s.nomer }}">
+          <button type="submit" class="btn btn-small">Відкрити знову</button>
+        </form>
+      {% else %}
+        рахується наживо.
+        {% if s.kin %}
+        <form method="post" action="/zalyshky-godyn/zakryty-semestr" class="inline-form"
+              onsubmit="return confirm('Закрити {{ s.nazva }}? Прочитане кожним учителем буде зафіксовано станом на {{ data_ua(s.kin) }} (або на сьогодні, якщо семестр ще триває). Після цього зміни навчального плану й учителів у наступному семестрі вже не перепишуть ці числа.');">
+          <input type="hidden" name="semestr" value="{{ s.nomer }}">
+          <button type="submit" class="btn btn-small">Закрити семестр</button>
+        </form>
+        {% endif %}
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  {% set semestry = [1, 2] if period == "rik" else [period|int] %}
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th rowspan="2">Вчитель</th>
+        <th rowspan="2">Предмет</th>
+        <th rowspan="2">Всього годин</th>
+        <th rowspan="2">На тиждень</th>
+        {% for s in semestry %}
+          <th colspan="5" class="blok-semestru">{{ "І" if s == 1 else "ІІ" }} семестр</th>
+        {% endfor %}
+        <th rowspan="2">Проведено фактично</th>
+        <th rowspan="2">Залишок</th>
+        {% if zatverdzheno_koly %}<th rowspan="2" class="col-actions"></th>{% endif %}
+      </tr>
+      <tr>
+        {% for s in semestry %}
+          <th>Скасовано по заміні</th>
+          <th>Втрачено (свята/карантин)</th>
+          <th>Відпрацьовано</th>
+          <th>Проведено по заміні</th>
+          <th>Прочитано за {{ "І" if s == 1 else "ІІ" }} семестр</th>
+        {% endfor %}
+      </tr>
+      {% for z in zapysy %}
+      <tr{% if z.zaplanovano > 0 and z.zalyshok <= 0 %} class="zalyshok-0"{% endif %}>
+        <td>{{ z.vchytel_pib }}</td>
+        <td>{{ z.predmet_nazva }}</td>
+        <td>{{ "%g"|format(z.zaplanovano) }}{% if not z.zatverdzheno %} <span class="form-hint" title="Цієї пари немає серед затверджених — рахується з поточного плану">(за планом)</span>{% endif %}</td>
+        <td>{{ "%g"|format(z.godyn_tyzhden|round(2)) }}</td>
+        {% for s in semestry %}
+          {% set b = z.s1 if s == 1 else z.s2 %}
+          <td>{{ chyslo(b.skasovano) }}</td>
+          <td>{{ chyslo(b.vtracheno) }}</td>
+          <td>{{ chyslo(b.vidpratsovano) }}</td>
+          <td>{{ chyslo(b.po_zamini) }}</td>
+          <td>{{ "%g"|format(b.prochytano) }}</td>
+        {% endfor %}
+        <td>{{ "%g"|format(z.prochytano) }}</td>
+        <td><strong>{{ "%g"|format(z.zalyshok) }}</strong></td>
+        {% if zatverdzheno_koly %}
+        <td>{% if z.zalyshok > 0 %}<a class="btn btn-small btn-secondary" href="/zalyshky-godyn/peredaty?vchytel_id={{ z.vchytel_id }}&predmet_id={{ z.predmet_id }}&data={{ na_datu }}">Передати…</a>{% endif %}</td>
+        {% endif %}
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ 6 + 5 * semestry|length }}" class="empty-row">Навчальний план порожній.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  {% if peredachi %}
+    <h2 class="section-title mt-24">Передачі годин</h2>
+    <div class="table-wrap"><table>
+      <tr><th>З дати</th><th>Предмет</th><th>Від кого</th><th>Кому</th><th>Годин</th><th class="col-actions"></th></tr>
+      {% for p in peredachi %}
+      <tr>
+        <td>{{ data_ua(p.data) }}</td>
+        <td>{{ p.predmet_nazva }}</td>
+        <td>{{ p.vid_pib }}</td>
+        <td>{{ p.do_pib }}</td>
+        <td>{{ "%g"|format(p.hodyn) }}</td>
+        <td>
+          <form method="post" action="/zalyshky-godyn/peredachi/{{ p.id }}/skasuvaty" class="inline-form"
+                onsubmit="return confirm('Скасувати цю передачу? Учителя в навчальному плані доведеться повернути вручну.');">
+            <button type="submit" class="btn btn-danger btn-small">Скасувати</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table></div>
+  {% endif %}
+{% endblock %}

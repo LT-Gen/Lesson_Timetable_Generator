@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Групи</h1>
+  <a class="btn" href="/grupy/new">+ Додати групу</a>
+  <p class="hint-info">
+    Віртуальні навчальні одиниці профільної старшої школи (10-12 клас) — складені з
+    ЧАСТИН одного чи кількох реальних класів. Назва групи (напр. <code>10-МЛК-МЛ-1</code>)
+    формується автоматично з паралелі, кластера й профілю (наказ МОН №1674 — див.
+    "Типові навчальні плани").
+  </p>
+  <p class="hint-plain">
+    <span class="nazva-unused">Неактивна</span> група не бере участі в генерації —
+    лишається як визначення "про запас".
+  </p>
+  <div class="table-wrap"><table>
+    <tr>
+      <th class="col-narrow">№</th>
+      <th>Назва</th>
+      <th>Кластер</th>
+      <th>Профіль</th>
+      <th>Склад (клас — учнів)</th>
+      <th class="col-narrow">Разом учнів</th>
+      <th class="col-narrow">Активна</th>
+      <th class="col-actions"></th>
+    </tr>
+    {% for g in grupy %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>
+        {% if g.aktyvna %}
+          <strong>{{ g.nazva }}</strong>
+        {% else %}
+          <span class="nazva-unused" title="Неактивна група">{{ g.nazva }}</span>
+        {% endif %}
+      </td>
+      <td>{{ g.klaster_nazva }}</td>
+      <td>{{ g.profil_nazva }}</td>
+      <td class="wrap-cell">{{ g.sklad_opys or "—" }}</td>
+      <td>{{ g.razom_uchniv or "—" }}</td>
+      <td>{{ "Так" if g.aktyvna else "Ні" }}</td>
+      <td>
+        <div class="actions-cell">
+          <a class="btn btn-small" href="/grupy/{{ g.id }}/edit">Редагувати</a>
+          <a class="btn btn-small btn-teal" href="/grupy/{{ g.id }}/sklad">Склад</a>
+          <form method="post" action="/grupy/{{ g.id }}/delete"
+                onsubmit="return confirm('Видалити групу {{ g.nazva }}?');">
+            <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="empty-row">Груп ще немає</td></tr>
+    {% endfor %}
+  </table></div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Асистенти</h1>
+  <a class="btn" href="/asystenty/new">+ Додати асистента</a>
+  <a class="btn btn-secondary" href="/asystenty/bulk">Масове додавання</a>
+  <p class="hint-info">
+    Посада асистента вчителя регулюється
+    <a href="/normatyvni-dokumenty#postanova-957" target="_blank">Постановою КМУ №957</a>
+    (Порядок організації інклюзивного навчання).
+  </p>
+  <div class="table-wrap"><table>
+    <tr>
+      <th class="col-narrow">№</th>
+      <th>ПІБ</th>
+      <th>Клас</th>
+      <th>Ставка</th>
+      <th>Супровід</th>
+      <th class="col-actions"></th>
+    </tr>
+    {% for a in asystenty %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>{{ a.pib }}</td>
+      <td>{{ a.paralel }}{% if a.litera %}-{{ a.litera }}{% endif %}</td>
+      <td>{{ a.stavka }}</td>
+      <td>{{ "Всі уроки" if a.suprovid == "vsi" else "Окремі предмети" }}</td>
+      <td>
+        <div class="actions-cell">
+          <a class="btn btn-small" href="/asystenty/{{ a.id }}/edit">Редагувати</a>
+          <form method="post" action="/asystenty/{{ a.id }}/delete"
+                onsubmit="return confirm('Видалити асистента {{ a.pib }}?');">
+            <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="empty-row">Асистентів ще немає</td></tr>
+    {% endfor %}
+  </table></div>
+{% endblock %}

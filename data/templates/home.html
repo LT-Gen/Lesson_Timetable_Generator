@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Поточний розклад</h1>
+
+  {% if school_grid %}
+    <div class="rozklad-toolbar mt-16">
+      <div class="actions-cell-inline">
+        <label>День:</label>
+        {% for d in range(1, dniv + 1) %}
+          <a class="btn btn-small {{ 'btn-teal' if d == obraniy_den else 'btn-secondary' }}"
+             href="/?den={{ d }}&parnist={{ obraniy_parnist }}">{{ ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб"][d - 1] }}</a>
+        {% endfor %}
+      </div>
+      {% if ye_parnist %}
+      <div class="actions-cell-inline">
+        <label>Тиждень:</label>
+        <a class="btn btn-small {{ 'btn-teal' if obraniy_parnist == 'parnyi' else 'btn-secondary' }}"
+           href="/?den={{ obraniy_den }}&parnist=parnyi">Парний</a>
+        <a class="btn btn-small {{ 'btn-teal' if obraniy_parnist == 'neparnyi' else 'btn-secondary' }}"
+           href="/?den={{ obraniy_den }}&parnist=neparnyi">Непарний</a>
+      </div>
+      {% endif %}
+      <div class="actions-cell-inline">
+        {% if ostannii_pdf %}
+          <a class="btn btn-small btn-purple" href="/schedule/view/{{ ostannii_pdf }}" target="_blank">Переглянути останній PDF</a>
+        {% endif %}
+        <form method="post" action="/rozklad/pdf-shkola" class="inline-form">
+          {% if ye_parnist %}
+            <input type="hidden" name="parnist" value="{{ obraniy_parnist }}">
+            <button type="submit" class="btn-small btn-purple">Зберегти PDF ({{ "парний" if obraniy_parnist == "parnyi" else "непарний" }} тиждень, усі дні, альбомна)</button>
+          {% else %}
+            <button type="submit" class="btn-small btn-purple">Зберегти PDF (усі дні, альбомна)</button>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+
+    <div class="table-wrap mt-16">
+      <table class="schedule-table">
+        <tr>
+          <th class="urok-nomer-stovpchyk">Клас</th>
+          {% for l in range(1, school_grid.urokiv + 1) %}
+            {% set dzv = school_grid.dzvinky.get(l) %}
+            <th>
+              {{ l }}
+              {% if dzv and dzv.pochatok and dzv.kinets %}
+                <span class="form-hint">{{ dzv.pochatok }}–{{ dzv.kinets }}</span>
+              {% endif %}
+            </th>
+          {% endfor %}
+        </tr>
+        {% for k in school_grid.klasy %}
+        <tr>
+          <th class="urok-nomer-stovpchyk">{{ klas_nazva(k.paralel, k.litera) }}</th>
+          {% for l in range(1, school_grid.urokiv + 1) %}
+            {% set zapysy = school_grid.cell_map.get((k.id, l), []) %}
+            {% set kolir_klas = "" %}
+            {% if zapysy and zapysy[0].predmet_id and zapysy[0].vazhkist %}
+              {% set kolir_klas = "slozhnist-" + zapysy[0].vazhkist %}
+            {% endif %}
+            <td class="{{ kolir_klas }}">
+              {% for u in zapysy %}
+                {% if not loop.first %}<hr>{% endif %}
+                <strong>{{ u.predmet_skor or u.predmet_nazva }}</strong>{% if u.parnist != "oboydva" %} <span class="form-hint">({{ "парн." if u.parnist == "parnyi" else "непарн." }})</span>{% endif %}{% if u.pidgrupa_2_vchytel_id %} <span class="form-hint">(2 підгрупа)</span>{% endif %}<br>{{ skorochene_pib(u.vchytel_pib) }}
+                {% if u.kabinet_nazva %}<br><span class="form-hint">{{ u.kabinet_nazva }}</span>{% endif %}
+                {% if u.pidgrupa_2_vchytel_id %}<br><span class="form-hint">(0 урок 1 підгрупа)</span>{% endif %}
+              {% endfor %}
+            </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <p class="hint-plain">
+      Час уроків показано для 1-ї зміни. Кольори клітинок — гігієнічна складність
+      предмета (рожевий — важкий, жовтий — середній, зелений — легкий; позаурочні
+      заняття — без кольору).
+    </p>
+  {% endif %}
+
+  {% if not school_grid %}
+    <div class="placeholder mt-24">
+      <p>Розклад ще не згенеровано.</p>
+      <p>Заповніть довідники (Класи, Предмети, Кабінети, Вчителі) і навчальний план,<br>
+         а потім запустіть генерацію в розділі "Генерація розкладу".</p>
+    </div>
+  {% endif %}
+{% endblock %}

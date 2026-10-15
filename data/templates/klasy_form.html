@@ -1,0 +1,89 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ "Редагувати клас" if klas and klas.get("id") else "Новий клас" }}</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <label>Паралель (1-12)</label>
+    <input type="number" name="paralel" min="1" max="12" required
+           value="{{ klas.paralel if klas else '' }}">
+
+    <label>Літера (А, Б... або до 4 знаків для профільних: АФ, ЛК, Іп; або залиште порожнім)</label>
+    <input type="text" name="litera" maxlength="4"
+           value="{{ klas.litera if klas and klas.litera else '' }}">
+
+    <label>Кількість хлопців</label>
+    <input type="number" name="kilkist_chlopciv" id="kilkist_chlopciv" min="0"
+           value="{{ klas.kilkist_chlopciv if klas else 0 }}">
+
+    <label>Кількість дівчат</label>
+    <input type="number" name="kilkist_divchat" id="kilkist_divchat" min="0"
+           value="{{ klas.kilkist_divchat if klas else 0 }}">
+
+    <label>Кількість учнів (обчислюється автоматично)</label>
+    <input type="number" id="kilkist_uchniv_display" disabled
+           value="{{ klas.kilkist_uchniv if klas else 0 }}">
+    <p class="hint-plain">Хлопці + дівчата, щоб уникнути розбіжностей.</p>
+
+    <label>Тип класу</label>
+    <input type="text" disabled
+           value="{{ 'Клас-комплект (' + klas.komplekt_nazva + ')' if klas and klas.get('komplekt_nazva') else 'Звичайний' }}">
+    <p class="hint-info">
+      Визначається автоматично — залежить від того, чи клас входить у якийсь
+      клас-комплект. Керується на сторінці <a href="/klas-komplekty">"Клас-комплекти"</a>,
+      не тут.
+    </p>
+
+    <label>Класний керівник</label>
+    {% if klas and klas.get('komplekt_nazva') %}
+      <input type="text" disabled value="{{ vsi_vchyteli|selectattr('id', 'equalto', klas.klasnyi_kerivnyk_id)|map(attribute='pib')|first or '— не призначено —' }}">
+      <p class="hint-note">
+        Клас у складі клас-комплекту — класний керівник призначається спільно всім
+        членам групи на сторінці <a href="/klas-komplekty">"Клас-комплекти"</a>, не тут.
+      </p>
+    {% else %}
+      <select name="klasnyi_kerivnyk_id">
+        <option value="">— не призначено —</option>
+        {% for v in vsi_vchyteli %}
+          <option value="{{ v.id }}" {{ "selected" if klas and klas.klasnyi_kerivnyk_id == v.id else "" }}>{{ v.pib }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint-plain">Довідкове поле (хто відповідає за клас).</p>
+    {% endif %}
+
+    <label>Домашній кабінет</label>
+    {% set kab_id = klas.domashniy_kabinet_id if klas and klas.domashniy_kabinet_id else None %}
+    <select name="domashniy_kabinet_id">
+      <option value="">— немає —</option>
+      {% for k in all_kabinety %}
+        <option value="{{ k.id }}" {{ "selected" if kab_id == k.id else "" }}>{{ k.nazva }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint-info">
+      Уроки цього класу за замовчуванням проходитимуть тут, окрім предметів зі спецкабінетом
+      або якщо вчитель має власний закріплений кабінет.
+    </p>
+
+    {% if klas and klas.get("id") %}
+      <p class="hint-plain">
+        Максимум уроків/день, граничне й фактичне навантаження, учні з ООП, мова
+        навчання — на сторінці <a href="/klasy/{{ klas.id }}/dodatkovo">"Додатково"</a>
+        (доступна після збереження).
+      </p>
+    {% endif %}
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/klasy">Скасувати</a>
+    </div>
+  </form>
+
+  <script>
+    liveSumDisplay(["kilkist_chlopciv", "kilkist_divchat"], "kilkist_uchniv_display");
+  </script>
+{% endblock %}

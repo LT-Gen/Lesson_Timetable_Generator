@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Масове додавання предметів</h1>
+  <p class="hint-plain">
+    Введіть по одній назві предмета в кожному рядку. Дублікати (за точним співпадінням
+    назви) буде пропущено. Складність, поділ на підгрупи та інші поля можна буде
+    налаштувати потім через "Редагувати"/"Додатково".
+  </p>
+
+  {% if message %}
+    <div class="alert alert-success">
+      {{ message }}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <label>Перелік назв предметів (по одному на рядок)</label>
+    <textarea name="nazvy_list" rows="15"
+              placeholder="Математика&#10;Фізика&#10;Історія України"></textarea>
+
+    <div>
+      <button type="submit">Додати всі</button>
+      <a class="btn btn-secondary" href="/predmety">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

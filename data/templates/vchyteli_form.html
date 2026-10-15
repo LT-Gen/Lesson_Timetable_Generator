@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ "Редагувати вчителя" if vchytel and vchytel.get("id") else "Новий вчитель" }}</h1>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post">
+    <label>ПІБ</label>
+    <input type="text" name="pib" required value="{{ vchytel.pib if vchytel else '' }}">
+
+    <label>Закріплений кабінет</label>
+    {% set kab_id = vchytel.zakriplenyi_kabinet_id if vchytel and vchytel.zakriplenyi_kabinet_id else None %}
+    <select name="zakriplenyi_kabinet_id">
+      <option value="">— немає —</option>
+      {% for k in all_kabinety %}
+        <option value="{{ k.id }}" {{ "selected" if kab_id == k.id else "" }}>{{ k.nazva }}</option>
+      {% endfor %}
+    </select>
+
+    <label>Максимум уроків на день</label>
+    <input type="number" name="maksymum_urokiv_den" min="1" max="10"
+           value="{{ vchytel.maksymum_urokiv_den if vchytel and vchytel.maksymum_urokiv_den else '' }}">
+
+    {% if riven_kolonky %}
+      <label>Рівні викладання</label>
+      <p class="hint-plain">Захист від помилки призначення — на які рівні школи можна
+        призначати цього вчителя в навчальному плані.</p>
+      <div class="checkbox-row">
+        {% for kod, nazva, _ in riven_kolonky %}
+          <label class="checkbox-label">
+            <input type="checkbox" name="{{ kod }}"
+                   {{ "checked" if not vchytel or vchytel.get(kod, 1) else "" }}>
+            {{ nazva }}
+          </label>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/vchyteli">Скасувати</a>
+    </div>
+  </form>
+{% endblock %}

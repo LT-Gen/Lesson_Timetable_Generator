@@ -1,0 +1,303 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Налаштування школи</h1>
+
+  <div class="rezhym-bazy-panel">
+    <p class="rezhym-aktyvnyi">
+      Активна база:
+      {% if demo_rezhym %}
+        🧪 <strong>демонстраційна</strong> (<code>school-demo.db</code>) — навчальний приклад
+      {% else %}
+        <strong>реальна школа</strong> (<code>school.db</code>)
+      {% endif %}
+    </p>
+    <p class="hint-note">
+      Дві окремі бази поруч. Перемикання нічого не копіює — обидва файли завжди
+      недоторкані. Зміна набуває чинності лише після перезапуску застосунку
+      (<code>run.bat</code>).
+    </p>
+    {% if demo_rezhym %}
+      <form method="post" action="/baza/pereklyuchyty"
+            onsubmit="return confirm('Повернутись до реальної бази школи? Потрібен перезапуск застосунку.');">
+        <input type="hidden" name="rezhym" value="realna">
+        <button type="submit" class="btn-baza btn-baza-demo">
+          Зараз демо — повернутись до реальної бази
+        </button>
+      </form>
+    {% else %}
+      <form method="post" action="/baza/pereklyuchyty"
+            onsubmit="return confirm('Перемкнути активну базу на демонстраційну? Реальні дані школи лишаться недоторканими. Потрібен перезапуск застосунку.');">
+        <input type="hidden" name="rezhym" value="demo">
+        <button type="submit" class="btn-baza btn-baza-realna" {{ "disabled" if not demo_baza_isnuye else "" }}>
+          Зараз реальна база — перемкнути на демонстраційну
+        </button>
+      </form>
+      {% if not demo_baza_isnuye %}
+        <p class="hint-note">Демо-база <code>school-demo.db</code> відсутня — зʼявиться після першої збірки релізу.</p>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  <form method="post">
+    <div class="settings-columns">
+      <div>
+        <label>Тип закладу</label>
+        <div class="checkbox-row" id="tip-zakladu-checkboxes">
+          <label class="checkbox-label">
+            <input type="checkbox" name="tz_pochatkova" id="tz_pochatkova"
+                   {{ "checked" if tz_checked.pochatkova else "" }} onchange="tipZakladuZminyty(this)">
+            Початкова (1-4)
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="tz_gimnaziya" id="tz_gimnaziya"
+                   {{ "checked" if tz_checked.gimnaziya else "" }} onchange="tipZakladuZminyty(this)">
+            Гімназія (5-9)
+          </label>
+          <label class="checkbox-label" title="Профільні групи 10-12 ще не підтримуються генератором розкладу">
+            <input type="checkbox" name="tz_liczei" id="tz_liczei" disabled
+                   {{ "checked" if tz_checked.liczei else "" }}>
+            Ліцей (10-12) — поки недоступно
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="tz_stara" id="tz_stara"
+                   {{ "checked" if tz_checked.stara else "" }} onchange="tipZakladuZminyty(this)">
+            1-11 (стара школа)
+          </label>
+        </div>
+        <p class="hint-note">
+          Позначте, які рівні реально є у вашому закладі — "1-11 (стара школа)" виключає
+          решту, бо це несумісна зі структурою НУШ ціла школа без поділу на рівні. Якщо
+          заклад охоплює кілька НУШ-рівнів (напр. і початкову, і гімназію) — розклад для
+          кожного рівня варто генерувати ОКРЕМО (кнопки з'являться на сторінці "Генерація
+          розкладу"), бо тривалість уроку різна за віком (35/40/45 хв) — наскрізна
+          генерація для вчителів, що працюють у кількох рівнях, технічно некоректна.
+        </p>
+        {% if settings.tip_zakladu %}
+          {% set rivni = TIP_ZAKLADU_OPTIONS[settings.tip_zakladu].rivni %}
+          <p class="hint-plain">
+            Поточні рівні: {% for r in rivni %}{{ r[0] }} ({{ r[1] }}-{{ r[2] }} класи){% if not loop.last %}, {% endif %}{% endfor %}.
+          </p>
+        {% endif %}
+        {% if tz_checked.liczei %}
+          <p class="hint-warning">
+            Рівень "Ліцей (10-12)" більше не можна обрати — профільні групи старшої
+            школи ще не підтримуються генератором розкладу. У вашій базі він ще
+            збережений; щойно ви збережете цю форму, він буде знятий, а класи 10-12
+            стануть поза діапазоном закладу (генерацію буде заблоковано, доки їх не
+            прибрати або не перейти на "1-11 (стара школа)").
+          </p>
+        {% endif %}
+        {% if demo_pidlashtuvannya %}
+          <p class="hint-warning">
+            Демо-режим: зміна типу закладу ПЕРЕБУДУЄ демо-дані під новий діапазон
+            класів (класи, навчальний план, вчителі, кабінети, асистенти,
+            позаурочка, згенерований розклад). Ваші власні правки демо буде
+            втрачено. Повна школа 1-11 зберігається всередині файлу — повернути її
+            можна будь-коли, обравши "1-11 (стара школа)".
+          </p>
+        {% endif %}
+        {% if klasy_poza_zakladom %}
+          <p class="hint-warning">
+            {{ klasy_poza_zakladom|length }} клас(и) випадають поза діапазоном поточного
+            закладу (сірим у "Класах"): {% for k in klasy_poza_zakladom %}{{ k.paralel }}{% if k.litera %}-{{ k.litera }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}.
+            Поверніть відповідний рівень або приберіть/перенесіть ці класи — доки
+            невідповідність не виправлено, генерація розкладу заблокована.
+          </p>
+        {% endif %}
+
+        <label>Кількість навчальних днів на тиждень</label>
+        <select name="dniv_na_tyzhden">
+          <option value="5" {{ "selected" if settings.dniv_na_tyzhden == 5 else "" }}>5 (пн-пт)</option>
+          <option value="6" {{ "selected" if settings.dniv_na_tyzhden == 6 else "" }}>6 (пн-сб)</option>
+        </select>
+
+        <label>Максимальна кількість уроків на день (сітка розкладу)</label>
+        <input type="number" name="urokiv_na_den" id="urokiv_na_den" min="1" max="10"
+               value="{{ settings.urokiv_na_den }}" onchange="this.form.submit()">
+        <p class="hint-info">
+          Це верхня межа сітки розкладу (і кількість рядків у дзвінках нижче) — має бути не менше
+          за найбільший ліміт серед класів. Реальний максимум уроків на день різний для кожного
+          класу окремо (за замовчуванням: 1 клас — 4, 2-4 — 5, 5 — 6, 6-9 — 7, 10-12 — 8) і
+          задається індивідуально в картці кожного класу.
+        </p>
+
+        <label>Мова навчання закладу (за замовчуванням для класів)</label>
+        <select name="mova_navchannya">
+          {% for m in MOVY_NAVCHANNYA %}
+            <option value="{{ m }}" {{ "selected" if settings.mova_navchannya == m else "" }}>
+              {{ m }}{{ " (за замовчуванням)" if m == "Українська" else "" }}
+            </option>
+          {% endfor %}
+        </select>
+        <p class="hint-info">
+          Мови нацменшин і корінних народів впливають на пороги обов'язкового поділу класу на
+          підгрупи (<a href="/normatyvni-dokumenty#nakaz-128" target="_blank">наказ МОН №128,
+          у редакції №808</a>) — див. довідник "Нормативні документи". Це мова закладу за
+          замовчуванням; якщо в конкретного класу мова інша — налаштуйте її окремо в картці
+          цього класу, пункт "Додатково".
+        </p>
+
+        <label>Тип місцевості</label>
+        <select name="tip_miscevosti">
+          <option value="miska" {{ "selected" if settings.tip_miscevosti == "miska" else "" }}>Місто</option>
+          <option value="silska" {{ "selected" if settings.tip_miscevosti == "silska" else "" }}>Село</option>
+        </select>
+        <p class="hint-info">
+          Впливає на пороги обов'язкового поділу на підгрупи
+          (<a href="/normatyvni-dokumenty#nakaz-128" target="_blank">наказ МОН №128</a>) —
+          наприклад, трудове навчання ділиться при >27 учнів у місті, але вже при >25 у селі.
+        </p>
+
+        <label class="checkbox-label mt-16">
+          <input type="checkbox" name="vikna_vchyteliv" {{ "checked" if settings.vikna_vchyteliv else "" }}>
+          Уникати вікон у вчителів при генерації
+        </label>
+        <p class="hint-info">
+          Генератор додатково стискає уроки кожного вчителя в день (менше «дірок» між
+          його уроками; на демо-школі їх стає вдвічі менше). Вікна у класів і нерозміщені
+          уроки завжди важать більше, але задача стає більшою, і на коротких прогонах
+          нерозміщених помітно більше. Вмикайте на фінальному 10-хвилинному прогоні, коли
+          розклад для класів уже чистий; якщо з'явились нерозміщені — вимкніть і
+          згенеруйте ще раз.
+        </p>
+      </div>
+
+      <div>
+        <h2 class="section-title">Навчальний рік</h2>
+
+        {% if ye_parnist %}
+        <label class="checkbox-label mt-16">
+          <input type="checkbox" name="pershyi_tyzhden_neparnyi"
+                 {{ "checked" if settings.pershyi_tyzhden_neparnyi else "" }}>
+          Перший тиждень навчального року — непарний
+        </label>
+        <p class="hint-info">
+          Визначає парність усіх наступних тижнів (для предметів із дробовим тижневим
+          навантаженням, напр. 0.5 год/тиждень — реалізується як повний урок раз на два
+          тижні). Парність рахується за реальним календарним тижнем від початку 1-го
+          семестру й НЕ призупиняється на канікулах.
+        </p>
+        {% elif settings.pershyi_tyzhden_neparnyi %}
+        <input type="hidden" name="pershyi_tyzhden_neparnyi" value="on">
+        {% endif %}
+
+        <div class="dzvinky-riad">
+          <div>
+            <h3>Семестр 1</h3>
+            <label>Початок</label>
+            <input type="date" name="semestr1_pochatok" value="{{ settings.semestr1_pochatok or '' }}">
+
+            <label>Закінчення</label>
+            <input type="date" name="semestr1_kinets" value="{{ settings.semestr1_kinets or '' }}">
+
+            <label class="checkbox-label mt-16">
+              <input type="checkbox" name="kanikuly1_e" id="kanikuly1_e" onchange="this.form.submit()"
+                     {{ "checked" if settings.kanikuly1_e else "" }}>
+              Є канікули всередині 1 семестру
+            </label>
+          </div>
+
+          <div>
+            <h3>Семестр 2</h3>
+            <label>Початок</label>
+            <input type="date" name="semestr2_pochatok" value="{{ settings.semestr2_pochatok or '' }}">
+
+            <label>Закінчення</label>
+            <input type="date" name="semestr2_kinets" value="{{ settings.semestr2_kinets or '' }}">
+
+            <label class="checkbox-label mt-16">
+              <input type="checkbox" name="kanikuly2_e" id="kanikuly2_e" onchange="this.form.submit()"
+                     {{ "checked" if settings.kanikuly2_e else "" }}>
+              Є канікули всередині 2 семестру
+            </label>
+          </div>
+        </div>
+
+        {% if settings.kanikuly1_e or settings.kanikuly2_e %}
+        <div class="dzvinky-riad mt-16">
+          {% if settings.kanikuly1_e %}
+          <div>
+            <h3>Канікули (1 семестр)</h3>
+            <label>Початок</label>
+            <input type="date" name="kanikuly1_pochatok" value="{{ settings.kanikuly1_pochatok or '' }}">
+
+            <label>Закінчення</label>
+            <input type="date" name="kanikuly1_kinets" value="{{ settings.kanikuly1_kinets or '' }}">
+          </div>
+          {% endif %}
+
+          {% if settings.kanikuly2_e %}
+          <div>
+            <h3>Канікули (2 семестр)</h3>
+            <label>Початок</label>
+            <input type="date" name="kanikuly2_pochatok" value="{{ settings.kanikuly2_pochatok or '' }}">
+
+            <label>Закінчення</label>
+            <input type="date" name="kanikuly2_kinets" value="{{ settings.kanikuly2_kinets or '' }}">
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <label class="mt-16">Кількість навчальних тижнів (обчислено з дат)</label>
+        <input type="number" value="{{ settings.kilkist_navchalnyh_tyzhniv }}" disabled>
+        <p class="hint-info">
+          Рахується автоматично як сума тривалості обох семестрів (÷7, з округленням), мінус дні
+          канікул усередині них (якщо позначено), після збереження. Використовується для
+          перерахунку річних годин у тижневі в "Матриці плану" вчителя й для "Залишків годин".
+          Якщо дати не задані — використовується запасне значення 35.
+        </p>
+      </div>
+
+      <div class="settings-kolonka-dzvinky">
+        <h2 class="section-title">Розклад дзвінків</h2>
+        <div class="table-wrap"><table>
+          <tr><th>Урок</th><th>Початок</th><th>Кінець</th></tr>
+          {% for u in range(1, settings.urokiv_na_den + 1) %}
+          {% set row = dzvinky.get((1, u)) %}
+          <tr>
+            <td>{{ u }}</td>
+            <td><input type="time" name="pochatok_1_{{ u }}" value="{{ row.pochatok if row and row.pochatok else '' }}"></td>
+            <td><input type="time" name="kinets_1_{{ u }}" value="{{ row.kinets if row and row.kinets else '' }}"></td>
+          </tr>
+          {% endfor %}
+        </table></div>
+        <p class="hint-info">
+          Кількість рядків = "Максимальна кількість уроків на день" зліва.
+          Час уроків використовується в перегляді розкладу та в PDF/Excel-експорті.
+        </p>
+        <p class="hint-note">
+          Друга зміна поки не підтримується — розклад складається на одну зміну.
+        </p>
+
+        <h2 class="section-title mt-24">Ненавчальні дні</h2>
+        <p class="hint-info">
+          Свята, перенесені дні, карантин, актовані дні (морози). Уроки, що на них
+          припали, у «Залишках годин» рахуються як непроведені — борг учителя.
+        </p>
+        <a class="btn btn-secondary" href="/nenavchalni-dni">Календар ненавчальних днів</a>
+      </div>
+    </div>
+
+    <div class="mt-16">
+      <button type="submit">Зберегти</button>
+    </div>
+  </form>
+
+  <script>
+    function tipZakladuZminyty(changed) {
+      var stara = document.getElementById("tz_stara");
+      var inshi = [
+        document.getElementById("tz_pochatkova"),
+        document.getElementById("tz_gimnaziya"),
+        document.getElementById("tz_liczei"),
+      ];
+      if (changed.id === "tz_stara" && changed.checked) {
+        inshi.forEach(function (cb) { cb.checked = false; });
+      } else if (changed.id !== "tz_stara" && changed.checked) {
+        stara.checked = false;
+      }
+      changed.form.submit();
+    }
+  </script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Перегляд розкладу</h1>
+
+  {% if not has_data %}
+    <p class="alert alert-error">
+      Розклад ще не згенеровано. Перейдіть у "Генерація розкладу" й натисніть "Згенерувати розклад".
+    </p>
+  {% else %}
+
+    <div class="filter-row mt-16">
+      <div class="actions-cell-inline">
+        <label>Клас:</label>
+        <select onchange="if (this.value) location.href = '/rozklad?klas_id=' + this.value;">
+          <option value="">— оберіть клас —</option>
+          {% for k in all_klasy %}
+            <option value="{{ k.id }}" {{ "selected" if klas_id == k.id else "" }}>{{ klas_nazva(k.paralel, k.litera) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="actions-cell-inline">
+        <label>Вчитель:</label>
+        <select onchange="if (this.value) location.href = '/rozklad?vchytel_id=' + this.value;">
+          <option value="">— оберіть вчителя —</option>
+          {% for v in all_vchyteli %}
+            <option value="{{ v.id }}" {{ "selected" if vchytel_id == v.id else "" }}>{{ v.pib }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if ye_parnist %}
+      <div class="actions-cell-inline">
+        <label>Тиждень:</label>
+        <a class="btn btn-small {{ 'btn-teal' if obraniy_parnist == 'parnyi' else 'btn-secondary' }}"
+           href="/rozklad?{{ ('klas_id=' ~ klas_id) if rezhym == 'klas' else ('vchytel_id=' ~ vchytel_id) if rezhym == 'vchytel' else '' }}&parnist=parnyi">Парний</a>
+        <a class="btn btn-small {{ 'btn-teal' if obraniy_parnist == 'neparnyi' else 'btn-secondary' }}"
+           href="/rozklad?{{ ('klas_id=' ~ klas_id) if rezhym == 'klas' else ('vchytel_id=' ~ vchytel_id) if rezhym == 'vchytel' else '' }}&parnist=neparnyi">Непарний</a>
+      </div>
+      {% endif %}
+      <div class="actions-cell-inline">
+        <form method="post" action="/rozklad/pdf" class="inline-form">
+          <input type="hidden" name="parnist" value="{{ obraniy_parnist }}">
+          <input type="hidden" name="povernennya" value="rozklad">
+          <button type="submit" class="btn-small btn-purple">Розклад класів у PDF</button>
+        </form>
+        <form method="post" action="/rozklad/pdf-vchyteli" class="inline-form">
+          <input type="hidden" name="parnist" value="{{ obraniy_parnist }}">
+          <button type="submit" class="btn-small btn-purple">Розклад вчителів у PDF</button>
+        </form>
+      </div>
+    </div>
+
+    {% if tytul %}
+    <h2 class="section-title mt-16">{{ tytul }}</h2>
+    <div class="table-wrap mt-16">
+      <table class="schedule-table">
+        <tr>
+          <th class="urok-nomer-stovpchyk">Урок</th>
+          {% for d in range(1, dniv + 1) %}
+            <th>{{ ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб"][d - 1] }}</th>
+          {% endfor %}
+        </tr>
+        {% for l in range(1, urokiv + 1) %}
+        <tr>
+          <th class="urok-nomer-stovpchyk">{{ l }}</th>
+          {% for d in range(1, dniv + 1) %}
+            {% set zapysy = cell_map.get((d, l), []) %}
+            {% set kolir_klas = "" %}
+            {% if zapysy and zapysy[0].predmet_id and zapysy[0].vazhkist %}
+              {% set kolir_klas = "slozhnist-" + zapysy[0].vazhkist %}
+            {% endif %}
+            <td class="{{ kolir_klas }}">
+              {% for u in zapysy %}
+                {% if not loop.first %}<hr>{% endif %}
+                {% set ye_pozaurochne = u.predmet_id is none %}
+                {% if rezhym == "klas" %}
+                  <strong{% if ye_pozaurochne %} class="pozaurochne-nazva"{% endif %}>{{ u.predmet_skor or u.predmet_nazva }}{% if ye_pozaurochne %} ⏰{% endif %}</strong>{% if zapysy|length > 1 %} <span class="form-hint">(підгр.{{ loop.index }})</span>{% endif %}{% if u.parnist != "oboydva" %} <span class="form-hint">({{ "парн." if u.parnist == "parnyi" else "непарн." }})</span>{% endif %}{% if u.pidgrupa_2_vchytel_id %} <span class="form-hint">(2 підгрупа)</span>{% endif %}<br>
+                  {{ skorochene_pib(u.vchytel_pib) }}
+                  {% if u.asystenty %}<br><span class="form-hint">+ас.{{ u.asystenty|join(", ") }}</span>{% endif %}
+                  {% if u.kabinet_nazva %}<br><span class="form-hint">{{ u.kabinet_nazva }}</span>{% endif %}
+                  {% if u.pidgrupa_2_vchytel_id %}<br><span class="form-hint">(0 урок 1 підгрупа)</span>{% endif %}
+                {% else %}
+                  <strong>{{ klas_nazva(u.paralel, u.litera) }}</strong><br>
+                  <span{% if ye_pozaurochne %} class="pozaurochne-nazva"{% endif %}>{{ u.predmet_skor or u.predmet_nazva }}{% if ye_pozaurochne %} ⏰{% endif %}</span>{% if u.parnist != "oboydva" %} <span class="form-hint">({{ "парн." if u.parnist == "parnyi" else "непарн." }})</span>{% endif %}{% if u.pidgrupa_2_vchytel_id %} <span class="form-hint">(2 підгрупа)</span>{% endif %}
+                  {% if u.kabinet_nazva %}<br><span class="form-hint">{{ u.kabinet_nazva }}</span>{% endif %}
+                  {% if u.pidgrupa_2_vchytel_id %}<br><span class="form-hint">(0 урок 1 підгрупа)</span>{% endif %}
+                {% endif %}
+              {% endfor %}
+            </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+
+  {% endif %}
+{% endblock %}

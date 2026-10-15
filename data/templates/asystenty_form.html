@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>{{ "Редагувати асистента" if asystent and asystent.get("id") else "Новий асистент" }}</h1>
+  <p class="hint-info">
+    Регулюється <a href="/normatyvni-dokumenty#postanova-957" target="_blank">Постановою КМУ №957</a>
+    (Порядок організації інклюзивного навчання).
+  </p>
+
+  {% if errors %}
+    <div class="alert alert-error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  {% if all_klasy %}
+  <form method="post">
+    <label>ПІБ</label>
+    <input type="text" name="pib" required value="{{ asystent.pib if asystent else '' }}">
+
+    <label>Клас</label>
+    {% set klas_id = asystent.klas_id if asystent and asystent.klas_id else None %}
+    <select name="klas_id" required>
+      <option value="">— оберіть —</option>
+      {% for k in all_klasy %}
+        <option value="{{ k.id }}" {{ "selected" if klas_id == k.id else "" }}>{{ k.paralel }}{% if k.litera %}-{{ k.litera }}{% endif %}</option>
+      {% endfor %}
+    </select>
+
+    <label>Ставка</label>
+    <input type="number" name="stavka" step="0.25" min="0.25" max="1.5"
+           value="{{ asystent.stavka if asystent and asystent.stavka else 1.0 }}">
+
+    <label>Супровід</label>
+    {% set suprovid = asystent.suprovid if asystent else 'vsi' %}
+    <select name="suprovid" id="suprovid">
+      <option value="vsi" {{ "selected" if suprovid == "vsi" else "" }}>Всі уроки класу</option>
+      <option value="okremi" {{ "selected" if suprovid == "okremi" else "" }}>Окремі предмети</option>
+    </select>
+
+    <div id="predmety-block" class="details-content">
+      <label>Предмети супроводу</label>
+      {% set selected_ids = asystent.predmet_ids if asystent and asystent.predmet_ids else [] %}
+      {% if all_predmety %}
+      <div class="checkbox-2col">
+        {% for p in all_predmety %}
+          <label class="checkbox-label">
+            <input type="checkbox" name="predmet_ids" value="{{ p.id }}"
+                   {{ "checked" if p.id in selected_ids else "" }}>
+            {{ p.nazva }}
+          </label>
+        {% endfor %}
+      </div>
+      {% else %}
+        <p class="hint-plain">Предметів ще немає.</p>
+      {% endif %}
+    </div>
+
+    <div>
+      <button type="submit">Зберегти</button>
+      <a class="btn btn-secondary" href="/asystenty">Скасувати</a>
+    </div>
+  </form>
+
+  <script>
+    toggleBlocksBySelect("suprovid", {
+      "predmety-block": ["okremi"],
+    });
+  </script>
+  {% endif %}
+{% endblock %}

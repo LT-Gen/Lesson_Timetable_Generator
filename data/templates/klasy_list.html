@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Класи</h1>
+  <a class="btn" href="/klasy/new">+ Додати клас</a>
+  <p class="hint-plain"><span class="nazva-unused">Червоним</span> — клас не задіяний у навчальному плані.</p>
+  {% if ye_poza_zakladom %}
+    <p class="hint-warning">
+      Сірим — клас випадає поза діапазоном поточного типу закладу (див.
+      <a href="/nalashtuvannya">"Налаштування школи"</a>). Поверніть відповідний рівень
+      або приберіть/перенесіть ці класи — доки невідповідність не виправлено, генерація
+      розкладу заблокована.
+    </p>
+  {% endif %}
+  <div class="table-wrap"><table>
+    <tr>
+      <th>Назва</th>
+      <th>Учнів</th>
+      <th>Хлопців</th>
+      <th>Дівчат</th>
+      <th>Тип</th>
+      <th>Домашній кабінет</th>
+      <th>Макс. уроків/день</th>
+      <th class="col-actions"></th>
+    </tr>
+    {% for k in klasy %}
+    <tr{% if k.poza_zakladom %} class="riadok-poza-zakladom" title="Клас поза діапазоном поточного типу закладу"{% endif %}>
+      <td>
+        {% if k.u_plani %}
+          {{ k.paralel }}{% if k.litera %}-{{ k.litera }}{% endif %}
+        {% else %}
+          <span class="nazva-unused" title="Не задіяний у навчальному плані">{{ k.paralel }}{% if k.litera %}-{{ k.litera }}{% endif %}</span>
+        {% endif %}
+      </td>
+      <td>{{ k.kilkist_uchniv }}</td>
+      <td>{{ k.kilkist_chlopciv }}</td>
+      <td>{{ k.kilkist_divchat }}</td>
+      <td>{{ "Клас-комплект" if k.tip_klasu == "komplekt" else "Звичайний" }}</td>
+      <td>{{ k.kabinet_nazva or "—" }}</td>
+      <td>{{ k.maks_urokiv_den or default_maks_urokiv_den(k.paralel) }}</td>
+      <td>
+        {% set litera_val = ('-' + k.litera) if k.litera else '' %}
+        <div class="actions-cell">
+          <a class="btn btn-small" href="/klasy/{{ k.id }}/edit">Редагувати</a>
+          <a class="btn btn-small btn-secondary" href="/klasy/{{ k.id }}/dodatkovo">Додатково</a>
+          <a class="btn btn-small btn-purple" href="/klasy/{{ k.id }}/dostupnist">Доступність</a>
+          <form method="post" action="/klasy/{{ k.id }}/delete"
+                onsubmit="return confirm('Видалити клас {{ k.paralel }}{{ litera_val }}?{% if k.naslidky %} Разом з ним зникнуть: {{ k.naslidky }}.{% endif %}');">
+            <button type="submit" class="btn btn-danger btn-small">Видалити</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="empty-row">Класів ще немає</td></tr>
+    {% endfor %}
+  </table></div>
+
+  {# окремо від "+ Додати клас" і з підтвердженням: поряд її тиснули випадково
+     й отримували купу непотрібних класів. Діапазон - з типу закладу #}
+  <div class="mt-24">
+    <p class="hint-plain">
+      Швидкий старт: створити по одному порожньому класу без літери на кожну паралель
+      ({{ p_vid_zakladu }}–{{ p_do_zakladu }}). Паралелі, де клас без літери вже є, пропускаються.
+    </p>
+    <form method="post" action="/klasy/seed"
+          onsubmit="return confirm('Створити порожні класи {{ range(p_vid_zakladu, p_do_zakladu + 1)|join(', ') }} (без літер, 0 учнів, без кабінету)? Паралелі, де клас без літери вже є, буде пропущено.');">
+      <button type="submit" class="btn btn-secondary">Створити базові класи ({{ p_vid_zakladu }}-{{ p_do_zakladu }})</button>
+    </form>
+  </div>
+{% endblock %}
